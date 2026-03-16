@@ -141,7 +141,7 @@ export const financialRouter = router({
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'A soma das porcentagens deve ser 100%.' });
       }
 
-      return ctx.prisma.$transaction(async (tx) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
         // Remove existing splits
         await tx.financialEntrySplit.deleteMany({ where: { financialEntryId: input.entryId } });
         // Create new ones
