@@ -86,8 +86,8 @@ export default function StockBalancesPage() {
             <Card className="bg-slate-50">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
-                   {depots?.find(d => d.id === depotId)?.projectId ? <Building2 className="w-5 h-5 text-orange-500" /> : <PackageOpen className="w-5 h-5 text-blue-600" />}
-                   Almoxarifado {depots?.find(d => d.id === depotId)?.projectId ? 'de Obra' : 'Central'}
+                   {(depots as any[] | undefined)?.find((d: any) => d.id === depotId)?.projectId ? <Building2 className="w-5 h-5 text-orange-500" /> : <PackageOpen className="w-5 h-5 text-blue-600" />}
+                   Almoxarifado {(depots as any[] | undefined)?.find((d: any) => d.id === depotId)?.projectId ? 'de Obra' : 'Central'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
