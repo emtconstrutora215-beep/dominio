@@ -12,7 +12,7 @@ export default function OverviewDashboard({ filters }: { filters: { projectId?: 
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 w-full" />)}
+        {[1, 2, 3, 4].map((i: number) => <Skeleton key={i} className="h-32 w-full" />)}
       </div>
     );
   }
