@@ -103,12 +103,12 @@ export const scheduleRouter = router({
 
       // Transform into memory maps
       const stageMap = new Map(stages.map((s: any) => [s.id, s]));
-      const dragged = stageMap.get(input.draggedStageId);
-      
-      if (!dragged) throw new TRPCError({ code: 'NOT_FOUND' });
-
-      // Calculate shift in days based on END DATE
-      const oldEndDate = dragged.endDate || new Date();
+       const dragged = stageMap.get(input.draggedStageId) as any;
+       
+       if (!dragged) throw new TRPCError({ code: 'NOT_FOUND' });
+ 
+       // Calculate shift in days based on END DATE
+       const oldEndDate = dragged.endDate || new Date();
       const newEnd = new Date(input.newEndDate);
       const shiftInDays = differenceInDays(newEnd, oldEndDate);
 
