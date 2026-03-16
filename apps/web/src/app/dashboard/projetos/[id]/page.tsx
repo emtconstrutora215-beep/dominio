@@ -19,12 +19,12 @@ export default function ProjetoDetalhes() {
   if (isLoading) return <div className="p-8 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   if (!project) return <div className="p-8">Projeto não encontrado</div>;
 
-  const totalPlanned = project.stages.reduce((acc, stage) => 
-    acc + stage.budgetItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0), 0);
+  const totalPlanned = (project.stages as any[]).reduce((acc: number, stage: any) => 
+    acc + (stage.budgetItems as any[]).reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0), 0);
   
-  const totalActual = project.stages.reduce((acc, stage) => acc + stage.actualCost, 0);
+  const totalActual = (project.stages as any[]).reduce((acc: number, stage: any) => acc + stage.actualCost, 0);
   const physicalProgress = project.stages.length > 0 
-    ? (project.stages.reduce((acc, s) => acc + s.percentageComplete, 0) / project.stages.length).toFixed(0)
+    ? ((project.stages as any[]).reduce((acc: number, s: any) => acc + s.percentageComplete, 0) / project.stages.length).toFixed(0)
     : 0;
 
   return (
