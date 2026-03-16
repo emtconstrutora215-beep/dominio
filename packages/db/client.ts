@@ -9,7 +9,7 @@ export const prisma = globalForPrisma.prisma || new PrismaClient().$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }: { model?: string, operation: string, args: any, query: (args: any) => Promise<any> }) {
-        if (process.env.NODE_ENV !== 'production' && tenantModels.includes(model)) {
+        if (process.env.NODE_ENV !== 'production' && model && tenantModels.includes(model)) {
           // Check if operation is a read/update/delete operation that uses `where`
           if (['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'update', 'updateMany', 'delete', 'deleteMany', 'aggregate', 'groupBy', 'count'].includes(operation)) {
             const hasWhere = args && typeof args === 'object' && 'where' in args;
