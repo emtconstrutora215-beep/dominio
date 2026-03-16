@@ -92,7 +92,7 @@ export default function StockBalancesPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-slate-600">
-                  {depots?.find(d => d.id === depotId)?.name}
+                  {(depots as any[] | undefined)?.find((d: any) => d.id === depotId)?.name}
                 </p>
               </CardContent>
             </Card>

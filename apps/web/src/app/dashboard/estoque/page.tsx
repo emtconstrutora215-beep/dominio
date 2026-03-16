@@ -42,7 +42,7 @@ export default function StockDashboard() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {modules.map(mod => (
+        {modules.map((mod: any) => (
           <Link href={mod.href} key={mod.title} className="group">
             <Card className="h-full hover:border-primary/50 hover:shadow-md transition-all cursor-pointer">
               <CardHeader>

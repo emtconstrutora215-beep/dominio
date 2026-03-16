@@ -78,7 +78,7 @@ export default function BankAccountsPage() {
         <div>Carregando contas...</div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {accounts?.map(acc => (
+          {(accounts as any[] | undefined)?.map((acc: any) => (
             <Card key={acc.id} className="hover:shadow-md transition-all">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
@@ -164,7 +164,7 @@ export default function BankAccountsPage() {
                 onChange={e => setSelectedAccountId(e.target.value)}
               >
                 <option value="" disabled>Selecione a conta...</option>
-                {accounts?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                {(accounts as any[] | undefined)?.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
               </select>
             </div>
             <div className="space-y-2">

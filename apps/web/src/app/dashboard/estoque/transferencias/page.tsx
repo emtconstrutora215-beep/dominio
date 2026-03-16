@@ -114,13 +114,13 @@ export default function StockTransfersPage() {
                           <FormControl>
                             <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                               <option value="" disabled>Selecione um item com saldo...</option>
-                              {sourceBalances?.filter(b => b.quantity > 0).map(b => (
+                              {(sourceBalances as any[] | undefined)?.filter((b: any) => b.quantity > 0).map((b: any) => (
                                 <option key={b.id} value={b.material}>{b.material} (Saldo Disponível: {b.quantity} {b.unit})</option>
                               ))}
                             </select>
                           </FormControl>
                           <FormMessage />
-                          {sourceBalances?.filter(b => b.quantity > 0).length === 0 && (
+                          {(sourceBalances as any[] | undefined)?.filter((b: any) => b.quantity > 0).length === 0 && (
                             <FormDescription className="text-red-500">Estoque zerado neste local.</FormDescription>
                           )}
                         </FormItem>

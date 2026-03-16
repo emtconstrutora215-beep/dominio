@@ -19,7 +19,7 @@ export default function QuotesPage() {
   const { data: requests, isLoading } = trpc.purchasing.getRequests.useQuery();
 
   // Show only approved requests
-  const quoteRequests = requests?.filter(req => req.status === 'APPROVED') || [];
+  const quoteRequests = (requests as any[] | undefined)?.filter((req: any) => req.status === 'APPROVED') || [];
 
   if (isLoading) return <div className="p-6">Carregando cotações...</div>;
 
@@ -50,7 +50,7 @@ export default function QuotesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              quoteRequests.map((req) => (
+              quoteRequests.map((req: any) => (
                 <TableRow key={req.id}>
                   <TableCell className="font-mono text-xs text-slate-500">{req.id.slice(0, 8)}</TableCell>
                   <TableCell>{format(new Date(req.updatedAt), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>

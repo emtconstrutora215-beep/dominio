@@ -80,7 +80,7 @@ export default function NewPurchaseRequestPage() {
                     {...field}
                   >
                     <option value="">Selecione a obra...</option>
-                    {projects?.map(p => (
+                    {(projects as any[] | undefined)?.map((p: any) => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>

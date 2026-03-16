@@ -136,7 +136,7 @@ export default function NovaMedicaoPage() {
             </CardHeader>
             <CardContent className="space-y-4">
                {selectedContract.items.map((item: { id: string, description: string, projectStage?: { name: string }, quantity: number, unit: string, unitPrice: number }) => {
-                  const currentValue = items.find(i => i.contractItemId === item.id)?.quantity || 0;
+                  const currentValue = items.find((i: any) => i.contractItemId === item.id)?.quantity || 0;
                   return (
                     <div key={item.id} className="grid grid-cols-12 gap-4 items-center border p-4 rounded-md bg-slate-50">
                       <div className="col-span-5">

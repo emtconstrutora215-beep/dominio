@@ -128,7 +128,7 @@ export default function StockExitsPage() {
                             </select>
                           </FormControl>
                           <FormMessage />
-                          {balances?.filter(b => b.quantity > 0).length === 0 && (
+                          {(balances as any[] | undefined)?.filter((b: any) => b.quantity > 0).length === 0 && (
                             <FormDescription className="text-red-500">Nenhum estoque disponível.</FormDescription>
                           )}
                         </FormItem>

@@ -69,7 +69,7 @@ export default function PurchaseOrdersPage() {
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1 flex-wrap max-w-[200px]">
-                      {order.financialEntries.map(entry => (
+                      {(order.financialEntries as any[]).map((entry: any) => (
                         <div key={entry.id} title={`Vence: ${format(new Date(entry.dueDate), 'dd/MM')}`} className="text-xs bg-slate-100 border text-slate-600 px-2 py-0.5 rounded">
                           {format(new Date(entry.dueDate), 'dd/MM')} (R$ {entry.amount.toFixed(2)})
                         </div>
