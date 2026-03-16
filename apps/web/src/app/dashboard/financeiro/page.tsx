@@ -178,7 +178,7 @@ export default function FinanceiroList() {
                             }}>
                               <SelectTrigger className="h-8 shadow-none"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {projects?.filter(p => p && p.id).map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                {(projects as any[])?.filter((p: any) => p && p.id).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                               </SelectContent>
                             </Select>
                           </div>
