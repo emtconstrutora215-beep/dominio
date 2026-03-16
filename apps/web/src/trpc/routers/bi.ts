@@ -81,7 +81,7 @@ export const biRouter = router({
       let delayedCount = 0;
       let onTimeCount = 0;
       
-      projects.forEach(p => {
+      projects.forEach((p: any) => {
         if (p.status !== 'COMPLETED' && p.status !== 'CANCELLED') {
           if (p.endDate && new Date(p.endDate) < now) {
             delayedCount++;
@@ -150,7 +150,7 @@ export const biRouter = router({
         });
         
         const categoryMap = new Map<string, number>();
-        splits.forEach(s => {
+        splits.forEach((s: any) => {
           const cat = s.financialEntry.category || 'Outros';
           categoryMap.set(cat, (categoryMap.get(cat) || 0) + s.amount);
         });
@@ -219,7 +219,7 @@ export const biRouter = router({
       let totalCycleTimeDays = 0;
       let cycleCount = 0;
 
-      orders.forEach(o => {
+      orders.forEach((o: any) => {
         const winner = (o.quote.suppliers as any[]).find((s: any) => s.isWinner);
         if (winner) {
           supplierTotals.set(winner.supplierName, (supplierTotals.get(winner.supplierName) || 0) + winner.totalPrice);
@@ -297,7 +297,7 @@ export const biRouter = router({
       });
 
       const revenueMap = new Map<string, number>();
-      incomes.forEach(inc => {
+      incomes.forEach((inc: any) => {
         if (inc.paidDate) {
            const month = inc.paidDate.toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
            revenueMap.set(month, (revenueMap.get(month) || 0) + inc.amount);

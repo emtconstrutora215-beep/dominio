@@ -108,12 +108,12 @@ export const bankRouter = router({
         orderBy: { dueDate: 'asc' }
       });
 
-      const results = unreconciledTx.map(tx => {
+      const results = unreconciledTx.map((tx: any) => {
         let bestMatch = null;
         let matchConfidence = 'UNRECONCILED';
 
         // Filter valid targets (same type: INCOME/EXPENSE)
-        const candidates = pendingEntries.filter(e => e.type === tx.type);
+        const candidates = pendingEntries.filter((e: any) => e.type === tx.type);
 
         for (const candidate of candidates) {
           const diffDays = Math.abs(differenceInDays(tx.date, candidate.dueDate));

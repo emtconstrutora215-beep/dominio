@@ -62,7 +62,7 @@ export const measurementRouter = router({
       let grossValue = 0;
       
       const measurementItems = input.items.map((item: { contractItemId: string, quantity: number }) => {
-         const contractItem = contract.items.find(ci => ci.id === item.contractItemId);
+         const contractItem = contract.items.find((ci: any) => ci.id === item.contractItemId);
          if (!contractItem) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item not found in contract' });
          
          grossValue += (item.quantity * contractItem.unitPrice);

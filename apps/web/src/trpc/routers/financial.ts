@@ -60,7 +60,7 @@ export const financialRouter = router({
       // Group by date
       const flowMap: Record<string, { date: string; income: number; expense: number; balance: number }> = {};
 
-      entries.forEach(e => {
+      entries.forEach((e: any) => {
         const dateObj = e.status === 'PAID' && e.paidDate ? e.paidDate : e.dueDate;
         const date = dateObj.toISOString().split('T')[0];
         if (!flowMap[date]) flowMap[date] = { date, income: 0, expense: 0, balance: 0 };
@@ -104,7 +104,7 @@ export const financialRouter = router({
       let totalIncome = 0;
       let totalExpense = 0;
 
-      entries.forEach(e => {
+      entries.forEach((e: any) => {
         if (!categories[e.category]) {
            categories[e.category] = { name: e.category, type: e.type, amount: 0 };
         }
