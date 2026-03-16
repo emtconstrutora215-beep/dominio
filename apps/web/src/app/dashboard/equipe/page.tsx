@@ -68,7 +68,7 @@ export default function EquipePage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {users?.map((user) => (
+        {(users as any[] | undefined)?.map((user: any) => (
           <Card 
             key={user.id} 
             className="group overflow-hidden border-2 border-slate-100 rounded-none hover:border-primary/40 transition-all duration-300"

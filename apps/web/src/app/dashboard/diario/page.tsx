@@ -42,7 +42,7 @@ export default function DiarioGlobalPage() {
       </div>
 
       <div className="grid gap-6">
-        {projects?.map((project) => (
+        {(projects as any[] | undefined)?.map((project: any) => (
           <Card 
             key={project.id} 
             className="group overflow-hidden border-2 border-slate-100 rounded-none hover:border-secondary/40 transition-all duration-300"
@@ -82,7 +82,7 @@ export default function DiarioGlobalPage() {
 
                 <div className="space-y-6">
                   {project.dailyReports.length > 0 ? (
-                    project.dailyReports.slice(0, 2).map((report) => (
+                    (project.dailyReports as any[]).slice(0, 2).map((report: any) => (
                       <div key={report.id} className="relative pl-6 before:absolute before:left-0 before:top-1.5 before:w-2 before:h-2 before:bg-slate-200 before:content-[''] group-hover:before:bg-secondary/40 before:transition-colors">
                         <div className="flex items-center gap-3 mb-1">
                           <span className="text-xs font-bold text-slate-500 flex items-center gap-1">

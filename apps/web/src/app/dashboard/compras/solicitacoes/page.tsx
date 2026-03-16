@@ -70,7 +70,7 @@ export default function PurchaseRequestsPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              requests?.map((req) => (
+              (requests as any[] | undefined)?.map((req: any) => (
                 <TableRow key={req.id}>
                   <TableCell>{format(new Date(req.createdAt), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
                   <TableCell className="font-medium">{req.project.name}</TableCell>

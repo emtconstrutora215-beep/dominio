@@ -45,7 +45,7 @@ export default function PurchaseOrdersPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              orders?.map((order) => {
+              (orders as any[] | undefined)?.map((order: any) => {
                 const winner = order.quote.suppliers[0];
                 const total = winner ? winner.totalPrice + winner.freight : 0;
 

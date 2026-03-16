@@ -57,9 +57,9 @@ export default function ProjetosList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {projects?.map((proj) => {
+            {(projects as any[] | undefined)?.map((proj: any) => {
               const progress = proj.stages.length > 0 
-                ? (proj.stages.reduce((acc, s) => acc + s.percentageComplete, 0) / proj.stages.length).toFixed(0)
+                ? ((proj.stages as any[]).reduce((acc: number, s: any) => acc + s.percentageComplete, 0) / proj.stages.length).toFixed(0)
                 : 0;
               
               const formattedBudget = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(proj.budget);
