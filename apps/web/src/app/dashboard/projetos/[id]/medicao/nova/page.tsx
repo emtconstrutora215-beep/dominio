@@ -76,7 +76,7 @@ export default function NovaMedicaoPage() {
           contractId,
           notes,
           attachments: uploadedPaths,
-          items: items.filter(i => i.quantity > 0)
+          items: (items as any[]).filter((i: any) => i.quantity > 0)
        });
      } catch (err: unknown) {
         const error = err as Error;
