@@ -63,7 +63,7 @@ export default function BIPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os Projetos</SelectItem>
-                {projects?.map(p => (
+                {projects?.filter(p => p && p.id && p.id !== 'all').map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                 ))}
               </SelectContent>
