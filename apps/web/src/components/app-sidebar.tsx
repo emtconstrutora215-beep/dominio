@@ -80,7 +80,7 @@ export function AppSidebar({ user }: { user: User }) {
           <SidebarGroupLabel>EMT Construtora ERP</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
+              {(items as any[]).map((item: any) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>

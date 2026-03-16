@@ -63,8 +63,8 @@ export default function CommercialDashboard({ filters }: { filters: { projectId?
           <CardContent>
             <div className="text-2xl font-bold text-emerald-600">
               {(() => {
-                const w = data?.winLoss.find(x => x.name === 'Ganhos')?.value || 0;
-                const l = data?.winLoss.find(x => x.name === 'Perdidos')?.value || 0;
+                const w = (data?.winLoss as any[] | undefined)?.find((x: any) => x.name === 'Ganhos')?.value || 0;
+                const l = (data?.winLoss as any[] | undefined)?.find((x: any) => x.name === 'Perdidos')?.value || 0;
                 const total = w + l;
                 return total > 0 ? ((w/total)*100).toFixed(1) + "%" : "0%";
               })()}
@@ -94,7 +94,7 @@ export default function CommercialDashboard({ filters }: { filters: { projectId?
             <CardDescription>Obras fechadas, perdidas ou em negociação.</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-             {data?.winLoss && data.winLoss.some(x => x.value > 0) ? (
+             {data?.winLoss && (data.winLoss as any[]).some((x: any) => x.value > 0) ? (
                <ResponsiveContainer width="100%" height="100%">
                  <PieChart>
                    <Pie

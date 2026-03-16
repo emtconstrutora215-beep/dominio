@@ -80,7 +80,7 @@ export default function ProjectDashboard({ filters }: { filters: { projectId?: s
                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                      labelLine={false}
                    >
-                     {data.categoryExpenses.map((entry, index) => (
+                     {(data.categoryExpenses as any[]).map((entry: any, index: number) => (
                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                      ))}
                    </Pie>
