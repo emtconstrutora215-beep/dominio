@@ -48,7 +48,7 @@ export default function NovaMedicaoPage() {
   };
 
   const handleQuantityChange = (contractItemId: string, quantity: number) => {
-     setItems(prev => prev.map(i => i.contractItemId === contractItemId ? { ...i, quantity } : i));
+     setItems(prev => prev.map((i: any) => i.contractItemId === contractItemId ? { ...i, quantity } : i));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
