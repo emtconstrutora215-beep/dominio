@@ -116,7 +116,7 @@ export const measurementRouter = router({
       if (!measurement) throw new TRPCError({ code: 'NOT_FOUND' });
       if (measurement.status !== 'PENDING_APPROVAL') throw new TRPCError({ code: 'BAD_REQUEST', message: 'Not pending' });
 
-      return ctx.prisma.$transaction(async (tx) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
          const approved = await tx.measurement.update({
            where: { id: input.id },
            data: {
@@ -171,7 +171,7 @@ export const measurementRouter = router({
       });
       if (!measurement) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      return ctx.prisma.$transaction(async (tx) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
          if (measurement.financialEntry) {
             await tx.financialEntry.delete({ where: { id: measurement.financialEntry.id } });
          }
