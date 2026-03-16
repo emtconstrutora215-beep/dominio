@@ -108,7 +108,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="space-y-8">
               {orders?.slice(0, 5).map((order) => {
-                const winner = order.quote.suppliers.find(s => s.isWinner);
+                const winner = (order.quote.suppliers as any[]).find((s: any) => s.isWinner);
                 const amount = (winner?.totalPrice || 0) + (winner?.freight || 0);
                 
                 return (

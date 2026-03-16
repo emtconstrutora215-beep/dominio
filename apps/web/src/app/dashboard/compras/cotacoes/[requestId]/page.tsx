@@ -51,11 +51,11 @@ export default function QuoteMapPage({ params }: { params: { requestId: string }
   if (isLoading) return <div className="p-6">Carregando mapa...</div>;
 
   const suppliers = quote?.suppliers || [];
-  const hasWinner = suppliers.some(s => s.isWinner);
+  const hasWinner = (suppliers as any[]).some((s: any) => s.isWinner);
 
   // Calculate winners for highlighting
-  const minTotalPrice = suppliers.length > 0 ? Math.min(...suppliers.map(s => s.totalPrice + s.freight)) : 0;
-  const minDeliveryDays = suppliers.length > 0 ? Math.min(...suppliers.map(s => s.deliveryDays)) : 0;
+  const minTotalPrice = suppliers.length > 0 ? Math.min(...(suppliers as any[]).map((s: any) => s.totalPrice + s.freight)) : 0;
+  const minDeliveryDays = suppliers.length > 0 ? Math.min(...(suppliers as any[]).map((s: any) => s.deliveryDays)) : 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">

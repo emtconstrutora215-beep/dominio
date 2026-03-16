@@ -30,7 +30,14 @@ export default function FinanceiroList() {
   const createEntry = trpc.financial.createEntry.useMutation({
     onSuccess: (newEntry) => {
       if (splits.length > 0) {
-        saveSplits.mutate({ entryId: newEntry.id, splits: splits.map(s => ({ projectId: s.projectId, percentage: s.percentage, amount: (s.percentage / 100) * amount })) });
+        saveSplits.mutate({ 
+          entryId: newEntry.id, 
+          splits: (splits as any[]).map((s: any) => ({ 
+            projectId: s.projectId, 
+            percentage: s.percentage, 
+            amount: (s.percentage / 100) * amount 
+          })) 
+        });
       } else {
         toast.success("Lançamento criado!");
         utils.financial.getDashboardData.invalidate();
@@ -273,7 +280,7 @@ export default function FinanceiroList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {dashboardData?.entries.map((item) => (
+            {(dashboardData?.entries as any[] | undefined)?.map((item: any) => (
               <TableRow key={item.id} className="cursor-pointer hover:bg-slate-50">
                 <TableCell className="font-medium">
                   <div className="flex items-center gap-2">

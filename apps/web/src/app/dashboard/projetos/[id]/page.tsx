@@ -83,7 +83,7 @@ export default function ProjetoDetalhes() {
             <CardHeader><CardTitle>Etapas e Custos</CardTitle></CardHeader>
             <CardContent>
                <div className="space-y-4">
-                 {project.stages.map(stage => (
+                 {(project.stages as any[]).map((stage: any) => (
                    <div key={stage.id} className="border rounded-md p-4 bg-slate-50">
                      <div className="flex justify-between items-center">
                         <h3 className="font-semibold text-primary">{stage.name} ({stage.percentageComplete}% Concluído)</h3>
@@ -107,7 +107,7 @@ export default function ProjetoDetalhes() {
             <CardHeader><CardTitle>Relatórios Recentes</CardTitle></CardHeader>
             <CardContent>
                <div className="border-l-2 border-l-secondary pl-4 space-y-6">
-                 {project.dailyReports.map(report => (
+                 {(project.dailyReports as any[]).map((report: any) => (
                    <div key={report.id}>
                      <p className="text-xs text-muted-foreground">{new Date(report.date).toLocaleDateString('pt-BR')}</p>
                      <p className="font-medium">{report.description || "Sem observações detalhadas."}</p>
