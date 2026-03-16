@@ -212,7 +212,7 @@ export default function FinanceiroList() {
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 text-red-500" 
-                            onClick={() => setSplits(splits.filter((_, i) => i !== idx))}
+                            onClick={() => setSplits((splits as any[]).filter((_: any, i: number) => i !== idx))}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
