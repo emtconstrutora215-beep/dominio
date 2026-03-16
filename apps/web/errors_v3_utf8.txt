@@ -1,0 +1,3 @@
+﻿src/components/projetos/new-project-dialog.tsx(118,22): error TS2322: Type '{ className: string; onChange: (...event: any[]) => void; onBlur: Noop; value: unknown; disabled?: boolean | undefined; name: "budget"; ref: RefCallBack; type: "number"; step: string; }' is not assignable to type 'InputHTMLAttributes<HTMLInputElement>'.
+  Types of property 'value' are incompatible.
+    Type 'unknown' is not assignable to type 'string | number | readonly string[] | undefined'.

@@ -73,19 +73,19 @@ export const nfeRouter = router({
                             supplierName.toLowerCase().includes(winner.supplierName.substring(0, 5).toLowerCase());
         
         if (nameMatches || valDiffPerc <= 0.10) {
-           suggestions.push({
-             orderInfo: {
-               id: order.id,
-               supplierName: winner.supplierName,
-               project: order.quote.request.project?.name,
-               totalPrice: winner.totalPrice,
-               items: order.quote.request.items
-             },
-             discrepancy: {
-               hasPriceDiscrepancy: valDiffPerc > 0.05, // Warn if difference is > 5%
-               differenceAmount: Math.abs(winner.totalPrice - totalValue)
-             }
-           });
+            suggestions.push({
+              orderInfo: {
+                id: order.id,
+                supplierName: winner.supplierName,
+                project: order.quote.request.project?.name || 'Projeto não identificado',
+                totalPrice: winner.totalPrice,
+                items: order.quote.request.items
+              },
+              discrepancy: {
+                hasPriceDiscrepancy: valDiffPerc > 0.05, // Warn if difference is > 5%
+                differenceAmount: Math.abs(winner.totalPrice - totalValue)
+              }
+            });
         }
       }
 

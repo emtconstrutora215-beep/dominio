@@ -37,7 +37,7 @@ export function NewProjectDialog() {
   const [open, setOpen] = useState(false);
   const utils = trpc.useUtils();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -115,7 +115,7 @@ export function NewProjectDialog() {
                 <FormItem>
                   <FormLabel className="text-[10px] font-bold uppercase text-slate-700">Orçamento Previsto (R$)</FormLabel>
                   <FormControl>
-                    <Input type="number" step="0.01" {...field} className="rounded-none border-2 focus-visible:ring-secondary" />
+                    <Input type="number" step="0.01" {...field} value={field.value as any} className="rounded-none border-2 focus-visible:ring-secondary" />
                   </FormControl>
                   <FormMessage className="text-[10px] uppercase font-bold" />
                 </FormItem>
