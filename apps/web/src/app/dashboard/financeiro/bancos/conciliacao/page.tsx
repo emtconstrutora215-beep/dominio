@@ -88,7 +88,7 @@ function ReconciliationDashboard() {
       </div>
 
       <div className="grid gap-4">
-        {suggestions?.map(({ transaction, suggestion, confidence }) => {
+        {(suggestions as any[] | undefined)?.map(({ transaction, suggestion, confidence }: any) => {
           const isIncome = transaction.type === "INCOME";
           const currentMap = mappings[transaction.id] || { action: 'CREATE' };
 
