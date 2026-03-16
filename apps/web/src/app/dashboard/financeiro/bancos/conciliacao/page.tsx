@@ -35,7 +35,7 @@ function ReconciliationDashboard() {
   useEffect(() => {
     if (suggestions) {
       const initial: typeof mappings = {};
-      suggestions.forEach(s => {
+      (suggestions as any[]).forEach((s: any) => {
         if (s.confidence === 'HIGH' || s.confidence === 'MEDIUM') {
           initial[s.transaction.id] = { action: "LINK", targetId: s.suggestion?.id || "" };
         } else {
