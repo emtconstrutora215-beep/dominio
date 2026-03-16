@@ -234,7 +234,7 @@ export const purchasingRouter = router({
       }))
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.$transaction(async (tx) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
         // 1. Fetch Order and Supplier Price
         const order = await tx.purchaseOrder.findUnique({
           where: { id: input.orderId },

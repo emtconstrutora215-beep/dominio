@@ -65,7 +65,7 @@ export const stockRouter = router({
       toDepotId: z.string()
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.$transaction(async (tx) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
         // 1. Withdraw from source
         const sourceItem = await tx.stockItem.findFirst({
           where: { depotId: input.fromDepotId, material: input.material }
@@ -162,7 +162,7 @@ export const stockRouter = router({
       notes: z.string().optional() // Ex: Worker name
     }))
     .mutation(async ({ ctx, input }) => {
-       return ctx.prisma.$transaction(async (tx) => {
+       return ctx.prisma.$transaction(async (tx: any) => {
          // Validate Stage
          const stage = await tx.projectStage.findUnique({
            where: { id: input.projectStageId },
