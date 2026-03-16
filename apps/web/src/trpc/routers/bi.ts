@@ -23,7 +23,7 @@ export const biRouter = router({
         }
       });
 
-      const totalBudget = projects.reduce((acc, p) => acc + (p.budget || 0), 0);
+      const totalBudget = projects.reduce((acc: number, p: any) => acc + (p.budget || 0), 0);
       
       // Calculate Total Spent from FinancialEntries
       const spentWhere = {
@@ -50,7 +50,7 @@ export const biRouter = router({
           },
           include: { financialEntry: true }
         });
-        totalSpent = splits.reduce((acc, split) => acc + split.amount, 0);
+        totalSpent = (splits as any[]).reduce((acc: number, split: any) => acc + split.amount, 0);
       } else {
         const expenses = await prisma.financialEntry.aggregate({
           where: spentWhere,
@@ -63,17 +63,17 @@ export const biRouter = router({
       const percentOverBudget = totalBudget > 0 ? (overBudgetAmount / totalBudget) * 100 : 0;
 
       const projectStatusCounts = {
-        completed: projects.filter(p => p.status === 'COMPLETED').length,
-        inProgress: projects.filter(p => p.status === 'IN_PROGRESS').length,
-        paused: projects.filter(p => p.status === 'PAUSED').length,
-        planning: projects.filter(p => p.status === 'PLANNING').length,
+        completed: projects.filter((p: any) => p.status === 'COMPLETED').length,
+        inProgress: projects.filter((p: any) => p.status === 'IN_PROGRESS').length,
+        paused: projects.filter((p: any) => p.status === 'PAUSED').length,
+        planning: projects.filter((p: any) => p.status === 'PLANNING').length,
       };
 
       // Project summaries for charts
-      const projectSummaries = projects.map(p => ({
+      const projectSummaries = projects.map((p: any) => ({
         name: p.name,
         orcado: p.budget || 0,
-        realizado: p.stages.reduce((acc, s) => acc + s.actualCost, 0)
+        realizado: p.stages.reduce((acc: number, s: any) => acc + s.actualCost, 0)
       }));
 
       // Simple heuristic for "on time vs delayed": if endDate is past and status is not COMPLETED
@@ -123,7 +123,7 @@ export const biRouter = router({
         select: { name: true, plannedCost: true, actualCost: true }
       });
 
-      const budgetVsActual = stages.map(s => ({
+      const budgetVsActual = stages.map((s: any) => ({
         name: s.name,
         planned: s.plannedCost,
         actual: s.actualCost
@@ -162,7 +162,7 @@ export const biRouter = router({
           where: spentWhere,
           _sum: { amount: true }
         });
-        categoryExpenses = aggs.map(a => ({
+        categoryExpenses = aggs.map((a: any) => ({
           name: a.category || 'Outros',
           value: a._sum.amount || 0
         }));
@@ -220,12 +220,12 @@ export const biRouter = router({
       let cycleCount = 0;
 
       orders.forEach(o => {
-        const winner = o.quote.suppliers.find(s => s.isWinner);
+        const winner = (o.quote.suppliers as any[]).find((s: any) => s.isWinner);
         if (winner) {
           supplierTotals.set(winner.supplierName, (supplierTotals.get(winner.supplierName) || 0) + winner.totalPrice);
           
           // Savings: highest quote minus winner
-          const highestQuote = Math.max(...o.quote.suppliers.map(s => s.totalPrice));
+          const highestQuote = Math.max(...(o.quote.suppliers as any[]).map((s: any) => s.totalPrice));
           if (highestQuote > winner.totalPrice) {
              totalSavings += (highestQuote - winner.totalPrice);
              savingsCount++;
@@ -270,13 +270,13 @@ export const biRouter = router({
         select: { status: true, budget: true, createdAt: true }
       });
 
-      const won = projects.filter(p => ['IN_PROGRESS', 'COMPLETED', 'PAUSED'].includes(p.status)).length;
-      const lost = projects.filter(p => p.status === 'CANCELLED').length;
-      const planning = projects.filter(p => p.status === 'PLANNING').length;
+      const won = projects.filter((p: any) => ['IN_PROGRESS', 'COMPLETED', 'PAUSED'].includes(p.status)).length;
+      const lost = projects.filter((p: any) => p.status === 'CANCELLED').length;
+      const planning = projects.filter((p: any) => p.status === 'PLANNING').length;
 
-      const wonProjects = projects.filter(p => ['IN_PROGRESS', 'COMPLETED', 'PAUSED'].includes(p.status));
+      const wonProjects = projects.filter((p: any) => ['IN_PROGRESS', 'COMPLETED', 'PAUSED'].includes(p.status));
       const avgContractValue = wonProjects.length > 0 ? 
-        wonProjects.reduce((acc, p) => acc + (p.budget || 0), 0) / wonProjects.length : 0;
+        wonProjects.reduce((acc: number, p: any) => acc + (p.budget || 0), 0) / wonProjects.length : 0;
 
       // 2. Revenue by Month
       const incomeWhere = {

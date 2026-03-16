@@ -96,7 +96,7 @@ export default function StockTransfersPage() {
                         <FormControl>
                           <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                             <option value="" disabled>Retirar do almoxarifado...</option>
-                            {depots?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {(depots as any[] | undefined)?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />
@@ -142,7 +142,7 @@ export default function StockTransfersPage() {
                         <FormControl>
                           <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                             <option value="" disabled>Enviar para o almoxarifado...</option>
-                            {depots?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {(depots as any[] | undefined)?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />

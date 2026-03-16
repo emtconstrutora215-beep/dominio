@@ -16,12 +16,12 @@ export default function StockBalancesPage() {
     { enabled: !!depotId }
   );
 
-  const filteredBalances = balances?.filter(b => 
+  const filteredBalances = (balances as any[] | undefined)?.filter((b: any) => 
     b.material.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalDepotValue = balances?.reduce((acc, item) => acc + (item.quantity * item.averageUnitCost), 0) || 0;
-  const activeItemsCount = balances?.filter(i => i.quantity > 0).length || 0;
+  const totalDepotValue = (balances as any[] | undefined)?.reduce((acc: number, item: any) => acc + (item.quantity * item.averageUnitCost), 0) || 0;
+  const activeItemsCount = (balances as any[] | undefined)?.filter((i: any) => i.quantity > 0).length || 0;
 
   if (isLoadingDepots) return <div className="p-6">Carregando almoxarifados...</div>;
 
@@ -41,7 +41,7 @@ export default function StockBalancesPage() {
              onChange={e => setDepotId(e.target.value)}
            >
              <option value="" disabled>Escolha um almoxarifado para visualizar...</option>
-             {depots?.map(d => (
+             {(depots as any[] | undefined)?.map((d: any) => (
                <option key={d.id} value={d.id}>{d.name} {d.projectId ? `(Obra: ${d.project?.name})` : `(Central)`}</option>
              ))}
            </select>
@@ -110,7 +110,7 @@ export default function StockBalancesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredBalances?.map(stock => {
+                {(filteredBalances as any[] | undefined)?.map((stock: any) => {
                   const valorTotalItem = stock.quantity * stock.averageUnitCost;
                   const isEmpty = stock.quantity <= 0;
 

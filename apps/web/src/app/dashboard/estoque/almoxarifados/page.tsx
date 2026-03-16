@@ -111,7 +111,7 @@ export default function DepotsPage() {
                       <FormControl>
                         <select className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm" {...field}>
                           <option value="">Nenhuma (Almoxarifado Central da Empresa)</option>
-                          {projects?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          {(projects as any[] | undefined)?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -128,7 +128,7 @@ export default function DepotsPage() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {depots?.map(depot => (
+        {(depots as any[] | undefined)?.map((depot: any) => (
           <Card key={depot.id} className="relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-1.5 h-full ${depot.projectId ? 'bg-orange-500' : 'bg-blue-600'}`} />
             <CardHeader className="pb-2">

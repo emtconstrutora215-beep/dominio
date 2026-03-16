@@ -200,7 +200,7 @@ export const purchasingRouter = router({
       const installmentAmount = totalAmount / input.installments;
       const firstDate = new Date(input.firstDueDate);
 
-      const entries = Array.from({ length: input.installments }).map((_, idx) => {
+      const entries = Array.from({ length: input.installments }).map((_: any, idx: number) => {
         const dueDate = new Date(firstDate);
         dueDate.setMonth(dueDate.getMonth() + idx);
         
@@ -247,15 +247,15 @@ export const purchasingRouter = router({
         }
 
         const supplier = order.quote.suppliers[0];
-        const unitPriceForCMP = supplier ? (supplier.totalPrice / input.items.reduce((acc, i) => acc + i.orderedQuantity, 0)) : 0; // Simplified unit price derivation for the batch
+        const unitPriceForCMP = supplier ? (supplier.totalPrice / input.items.reduce((acc: number, i: any) => acc + i.orderedQuantity, 0)) : 0; // Simplified unit price derivation for the batch
 
         // 2. Check quantities
-        const validItems = input.items.filter(i => i.receivedQuantity > 0);
+        const validItems = input.items.filter((i: any) => i.receivedQuantity > 0);
         if (validItems.length === 0) {
            throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nenhuma quantidade recebida foi informada.'});
         }
 
-        const isFullyReceived = input.items.every(i => i.receivedQuantity >= i.orderedQuantity);
+        const isFullyReceived = input.items.every((i: any) => i.receivedQuantity >= i.orderedQuantity);
 
         // 3. Create GoodsReceipt
         const receipt = await tx.goodsReceipt.create({
@@ -264,7 +264,7 @@ export const purchasingRouter = router({
             depotId: input.depotId,
             receivedById: ctx.user.id,
             items: {
-              create: validItems.map(item => ({
+              create: validItems.map((item: any) => ({
                 materialName: item.material,
                 orderedQuantity: item.orderedQuantity,
                 receivedQuantity: item.receivedQuantity

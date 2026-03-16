@@ -10,12 +10,12 @@ export const financialRouter = router({
     });
 
     const totalIncome = entries
-      .filter(e => e.type === 'INCOME')
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .filter((e: any) => e.type === 'INCOME')
+      .reduce((acc: number, curr: any) => acc + curr.amount, 0);
 
     const totalExpense = entries
-      .filter(e => e.type === 'EXPENSE')
-      .reduce((acc, curr) => acc + curr.amount, 0);
+      .filter((e: any) => e.type === 'EXPENSE')
+      .reduce((acc: number, curr: any) => acc + curr.amount, 0);
 
     return {
       entries,
@@ -71,7 +71,7 @@ export const financialRouter = router({
 
       const flowArray = Object.values(flowMap).sort((a,b) => a.date.localeCompare(b.date));
       let cumulative = 0;
-      return flowArray.map(f => {
+      return flowArray.map((f: any) => {
          cumulative += (f.income - f.expense);
          return { ...f, balance: cumulative };
       });
@@ -136,7 +136,7 @@ export const financialRouter = router({
       }))
     }))
     .mutation(async ({ ctx, input }) => {
-      const totalPercent = input.splits.reduce((acc, s) => acc + s.percentage, 0);
+      const totalPercent = input.splits.reduce((acc: number, s: any) => acc + s.percentage, 0);
       if (Math.abs(totalPercent - 100) > 0.01) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'A soma das porcentagens deve ser 100%.' });
       }
@@ -146,7 +146,7 @@ export const financialRouter = router({
         await tx.financialEntrySplit.deleteMany({ where: { financialEntryId: input.entryId } });
         // Create new ones
         return tx.financialEntrySplit.createMany({
-          data: input.splits.map(s => ({
+          data: input.splits.map((s: any) => ({
             financialEntryId: input.entryId,
             projectId: s.projectId,
             percentage: s.percentage,

@@ -104,7 +104,7 @@ export default function StockExitsPage() {
                         <FormControl>
                           <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                             <option value="" disabled>Selecione um almox...</option>
-                            {depots?.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                            {(depots as any[] | undefined)?.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />
@@ -122,7 +122,7 @@ export default function StockExitsPage() {
                           <FormControl>
                             <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                               <option value="" disabled>Selecione o material disponível...</option>
-                              {balances?.filter(b => b.quantity > 0).map(b => (
+                              {(balances as any[] | undefined)?.filter((b: any) => b.quantity > 0).map((b: any) => (
                                 <option key={b.id} value={b.material}>{b.material} (Saldo: {b.quantity} {b.unit})</option>
                               ))}
                             </select>
@@ -174,7 +174,7 @@ export default function StockExitsPage() {
                         <FormControl>
                           <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                             <option value="" disabled>Para qual obra?</option>
-                            {projects?.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            {(projects as any[] | undefined)?.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </FormControl>
                         <FormMessage />
@@ -192,7 +192,7 @@ export default function StockExitsPage() {
                           <FormControl>
                             <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                               <option value="" disabled>Selecione a etapa para custear...</option>
-                              {projectDetails?.stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                              {(projectDetails?.stages as any[] | undefined)?.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
                             </select>
                           </FormControl>
                           <FormMessage />

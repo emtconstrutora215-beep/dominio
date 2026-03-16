@@ -122,7 +122,7 @@ export default function QuoteMapPage({ params }: { params: { requestId: string }
         {/* COMPARATIVE MAP */}
         <div className="md:col-span-3 space-y-6">
           <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {suppliers.map(sup => {
+            {(suppliers as any[]).map((sup: any) => {
               const isPriceWinner = (sup.totalPrice + sup.freight) === minTotalPrice;
               const isDeliveryWinner = sup.deliveryDays === minDeliveryDays;
 

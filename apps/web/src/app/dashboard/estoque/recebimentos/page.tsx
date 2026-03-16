@@ -44,7 +44,7 @@ export default function GoodsReceiptsPage() {
          orderedQuantity: originalItem?.quantity || 0,
          receivedQuantity: qty
        };
-    }).filter(i => i.receivedQuantity > 0);
+    }).filter((i: any) => i.receivedQuantity > 0);
 
     if (!selectedOrder) return;
 
@@ -55,7 +55,7 @@ export default function GoodsReceiptsPage() {
     });
   };
 
-  const pendingOrders = orders?.filter(o => ['AWAITING_RECEIPT', 'PARTIALLY_RECEIVED'].includes(o.status)) || [];
+  const pendingOrders = (orders as any[] | undefined)?.filter((o: any) => ['AWAITING_RECEIPT', 'PARTIALLY_RECEIVED'].includes(o.status)) || [];
 
   if (isLoadingOrders) return <div className="p-6">Carregando ordens de compra...</div>;
 
@@ -69,7 +69,7 @@ export default function GoodsReceiptsPage() {
       </div>
 
       <div className="grid gap-4">
-        {pendingOrders.map(order => {
+        {pendingOrders.map((order: any) => {
           const supplier = order.quote.suppliers[0]; // Winning supplier
           const totalOrdered = order.quote.request.items.reduce((acc: number, item: { quantity: number }) => acc + item.quantity, 0);
 
@@ -131,7 +131,7 @@ export default function GoodsReceiptsPage() {
                   onChange={e => setDepotId(e.target.value)}
                 >
                   <option value="" disabled>Selecione um almoxarifado...</option>
-                  {depots?.map(d => (
+                  {(depots as any[] | undefined)?.map((d: any) => (
                     <option key={d.id} value={d.id}>{d.name} {d.projectId ? `(Obra)` : `(Central)`}</option>
                   ))}
                 </select>

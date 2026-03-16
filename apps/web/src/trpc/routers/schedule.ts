@@ -25,7 +25,7 @@ export const scheduleRouter = router({
       if (!project) throw new TRPCError({ code: 'NOT_FOUND' });
 
       // Transform into a flat list of tasks and links mapping for Gantt
-      const tasks = project.stages.map(stage => ({
+      const tasks = project.stages.map((stage: any) => ({
         id: stage.id,
         name: stage.name,
         start: stage.startDate || project.startDate || new Date(),
@@ -36,8 +36,8 @@ export const scheduleRouter = router({
       }));
 
       // Flatten dependencies (Finish-to-Start only)
-      const links = project.stages.flatMap(stage => 
-         stage.successors.map(dep => ({
+      const links = project.stages.flatMap((stage: any) => 
+         (stage.successors as any[]).map((dep: any) => ({
            id: dep.id,
            source: dep.predecessorId,
            target: dep.successorId,
@@ -102,7 +102,7 @@ export const scheduleRouter = router({
       });
 
       // Transform into memory maps
-      const stageMap = new Map(stages.map(s => [s.id, s]));
+      const stageMap = new Map(stages.map((s: any) => [s.id, s]));
       const dragged = stageMap.get(input.draggedStageId);
       
       if (!dragged) throw new TRPCError({ code: 'NOT_FOUND' });
@@ -177,7 +177,7 @@ export const scheduleRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
        // Apply all shifts in a single transaction
-       const promises = input.updates.map(u => 
+       const promises = input.updates.map((u: any) => 
          ctx.prisma.projectStage.update({
            where: { id: u.id },
            data: {
