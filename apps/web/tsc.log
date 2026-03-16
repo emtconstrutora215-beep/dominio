@@ -1,0 +1,2 @@
+src/app/dashboard/projetos/[id]/cronograma/page.tsx(10,26): error TS2307: Cannot find module '@/components/ui/use-toast' or its corresponding type declarations.
+src/app/dashboard/projetos/[id]/cronograma/page.tsx(108,18): error TS2339: Property 'affected' does not exist on type 'void'.

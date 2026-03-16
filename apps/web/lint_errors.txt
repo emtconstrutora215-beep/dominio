@@ -1,0 +1,77 @@
+﻿
+> @construtora-erp/web@0.1.0 lint
+> eslint
+
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\estoque\recebimentos\page.tsx
+   10:16  warning  'CardContent' is defined but never used      @typescript-eslint/no-unused-vars
+   10:29  warning  'CardHeader' is defined but never used       @typescript-eslint/no-unused-vars
+   10:41  warning  'CardTitle' is defined but never used        @typescript-eslint/no-unused-vars
+   10:52  warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+   17:54  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   41:72  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   74:85  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  152:67  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  154:90  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  155:39  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  156:52  error    Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\estoque\saidas\page.tsx
+   46:3   warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/incompatible-library')
+  122:28  warning  Unused eslint-disable directive (no problems were reported from 'react/no-unescaped-entities')
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\bancos\page.tsx
+  11:60  warning  'DialogTrigger' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\importar\page.tsx
+   8:10  warning  'ptBR' is defined but never used             @typescript-eslint/no-unused-vars
+  10:52  warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\relatorios\page.tsx
+  9:10  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\projetos\[id]\cronograma\page.tsx
+  87:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\projetos\[id]\medicao\nova\page.tsx
+  19:28  warning  'isLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  39:69  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\onboarding\actions.ts
+  21:5  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\onboarding\page.tsx
+  44:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\bank.ts
+    4:1   error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   50:16  warning  'err' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+  188:19  warning  'entry' is assigned a value but never used                                                                           @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\contract.ts
+  62:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\financial.ts
+  46:11  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  64:9   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  93:55  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\measurement.ts
+  64:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\nfe.ts
+   15:16  warning  'err' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+   38:34  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   52:71  error    Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  120:11  error    Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\trpc.ts
+  7:27  warning  'error' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\utils\supabase\middleware.ts
+  19:48  warning  'options' is defined but never used       @typescript-eslint/no-unused-vars
+  55:21  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 37 problems (20 errors, 17 warnings)
+  0 errors and 2 warnings potentially fixable with the `--fix` option.
+

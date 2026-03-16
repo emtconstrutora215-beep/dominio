@@ -1,0 +1,20 @@
+{
+  "name": "construtora-erp",
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check"
+  },
+  "devDependencies": {
+    "turbo": "latest",
+    "typescript": "latest",
+    "@types/node": "latest"
+  }
+}

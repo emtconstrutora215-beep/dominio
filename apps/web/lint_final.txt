@@ -1,0 +1,41 @@
+﻿
+> @construtora-erp/web@0.1.0 lint
+> eslint
+
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\estoque\saidas\page.tsx
+  44:25  warning  Compilation Skipped: Use of incompatible library
+
+This API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\estoque\saidas\page.tsx:44:25
+  42 |   });
+  43 |
+> 44 |   const selectedDepot = form.watch("depotId");
+     |                         ^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.
+  45 |   const selectedProject = form.watch("projectId");
+  46 |
+  47 |   const { data: balances } = trpc.stock.getBalancesByDepot.useQuery(  react-hooks/incompatible-library
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\bancos\page.tsx
+  11:60  warning  'DialogTrigger' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\importar\page.tsx
+   8:10  warning  'ptBR' is defined but never used             @typescript-eslint/no-unused-vars
+  10:52  warning  'CardDescription' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\financeiro\relatorios\page.tsx
+  9:10  warning  'Button' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\projetos\[id]\cronograma\page.tsx
+  87:16  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\app\dashboard\projetos\[id]\medicao\nova\page.tsx
+  19:28  warning  'isLoading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  39:69  error    Unexpected any. Specify a different type        @typescript-eslint/no-explicit-any
+
+C:\Users\Administrador\Documents\Dominio\apps\web\src\trpc\routers\nfe.ts
+  38:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Ô£û 9 problems (2 errors, 7 warnings)
+

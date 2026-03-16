@@ -1,0 +1,513 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+enum Role {
+  ADMIN
+  ENGINEER
+  FIELD
+  CLIENT
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum RequestStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum OrderStatus {
+  ISSUED
+  AWAITING_RECEIPT // Adicionado para fluxo de estoque
+  PARTIALLY_RECEIVED // Adicionado para fluxo de estoque
+  RECEIVED // Adicionado para fluxo de estoque
+  PARTIALLY_PAID
+  PAID
+}
+
+enum FinancialType {
+  INCOME
+  EXPENSE
+}
+
+enum FinancialStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+}
+
+model Company {
+  id                String   @id @default(uuid())
+  name              String
+  cnpj              String?  @unique
+  approvalThreshold   Float    @default(5000)
+  onboardingCompleted Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  users            User[]
+  projects         Project[]
+  financialEntries FinancialEntry[]
+  depots           Depot[]
+  bankAccounts     BankAccount[]
+}
+
+model User {
+  id        String   @id // matches supabase auth.uid()
+  email     String   @unique
+  name      String
+  role      Role     @default(FIELD)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  dailyReports       DailyReport[]
+  requestedPurchases PurchaseRequest[] @relation("RequesterRelation")
+  approvedPurchases  PurchaseRequest[] @relation("ApproverRelation")
+  goodsReceipts      GoodsReceipt[]    @relation("ReceiptReceiverRelation")
+  stockMovements     StockMovement[]   @relation("MovementUserRelation")
+  transfersSent      Transfer[]        @relation("TransferSenderRelation")
+
+  // Measurement relations
+  measurementsCreated  Measurement[] @relation("MeasurementMeasuredBy")
+  measurementsApproved Measurement[] @relation("MeasurementApprovedBy")
+  measurementsRejected Measurement[] @relation("MeasurementRejectedBy")
+}
+
+model Project {
+  id        String        @id @default(uuid())
+  name      String
+  address   String?
+  status    ProjectStatus @default(PLANNING)
+  startDate DateTime?
+  endDate   DateTime?
+  budget    Float         @default(0)
+  companyId String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  company          Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stages           ProjectStage[]
+  dailyReports     DailyReport[]
+  purchaseRequests PurchaseRequest[]
+  depots           Depot[]
+  financialSplits  FinancialEntrySplit[]
+  contracts        Contract[]
+}
+
+model ProjectStage {
+  id                 String    @id @default(uuid())
+  name               String
+  plannedCost        Float     @default(0)
+  actualCost         Float     @default(0)
+  percentageComplete Float     @default(0)
+  startDate          DateTime? // Gantt - Início planejado
+  endDate            DateTime? // Gantt - Fim planejado
+  projectId          String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  budgetItems    BudgetItem[]
+  stockMovements StockMovement[]
+  contractItems  ContractItem[]
+
+  // Gantt Relationships
+  predecessors  StageDependency[]   @relation("SuccessorStages") // Dependências que vêm ANTES desta etapa
+  successors    StageDependency[]   @relation("PredecessorStages") // Dependências que vêm DEPOIS desta etapa
+  distributions StageDistribution[] // Opcional, overrides lineares da Curva-S
+}
+
+model Budget {
+  id        String   @id @default(uuid())
+  bdi       Float    @default(0) // Default BDI percentage applied to subtotal
+  projectId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BudgetItem {
+  id             String   @id @default(uuid())
+  description    String
+  unit           String
+  quantity       Float
+  unitPrice      Float
+  total          Float // quantity * unitPrice
+  projectStageId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  projectStage         ProjectStage          @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+  purchaseRequestItems PurchaseRequestItem[]
+}
+
+model DailyReport {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  description String
+  weather     String?
+  photos      String[] // array of paths to supabase storage
+  projectId   String
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+}
+
+model PurchaseRequest {
+  id           String        @id @default(uuid())
+  status       RequestStatus @default(DRAFT)
+  notes        String?
+  rejectReason String?
+  projectId    String
+  requesterId  String
+  approverId   String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requester User                  @relation("RequesterRelation", fields: [requesterId], references: [id])
+  approver  User?                 @relation("ApproverRelation", fields: [approverId], references: [id])
+  items     PurchaseRequestItem[]
+  quotes    Quote[]
+}
+
+model PurchaseRequestItem {
+  id           String  @id @default(uuid())
+  requestId    String
+  budgetItemId String?
+  description  String
+  unit         String
+  quantity     Float
+
+  request    PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  budgetItem BudgetItem?     @relation(fields: [budgetItemId], references: [id], onDelete: SetNull)
+}
+
+model Quote {
+  id        String   @id @default(uuid())
+  requestId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  request   PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  suppliers QuoteSupplier[]
+  order     PurchaseOrder?
+}
+
+model QuoteSupplier {
+  id           String  @id @default(uuid())
+  quoteId      String
+  supplierName String
+  unitPrice    Float
+  totalPrice   Float
+  deliveryDays Int
+  paymentTerms String
+  freight      Float   @default(0)
+  notes        String?
+  isWinner     Boolean @default(false)
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+model PurchaseOrder {
+  id        String      @id @default(uuid())
+  quoteId   String      @unique
+  status    OrderStatus @default(AWAITING_RECEIPT) // Modificado fluxo inicial
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  quote            Quote            @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  financialEntries FinancialEntry[]
+  goodsReceipts    GoodsReceipt[]
+}
+
+model FinancialEntry {
+  id             String          @id @default(uuid())
+  type           FinancialType
+  category       String
+  description    String
+  amount         Float
+  competencyDate DateTime        @default(now()) // Regime de Competência
+  dueDate        DateTime
+  paidDate       DateTime?
+  status         FinancialStatus @default(PENDING)
+  companyId      String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+
+  bankTransactionId String?          @unique
+  bankTransaction   BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+
+  splits FinancialEntrySplit[]
+
+  measurementId String?      @unique
+  measurement   Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
+}
+
+model FinancialEntrySplit {
+  id               String   @id @default(uuid())
+  financialEntryId String
+  projectId        String
+  percentage       Float
+  amount           Float
+  createdAt        DateTime @default(now())
+
+  financialEntry FinancialEntry @relation(fields: [financialEntryId], references: [id], onDelete: Cascade)
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model BankAccount {
+  id             String   @id @default(uuid())
+  name           String
+  agency         String?
+  accountNumber  String?
+  initialBalance Float    @default(0)
+  currentBalance Float    @default(0)
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions BankTransaction[]
+}
+
+model BankTransaction {
+  id            String        @id @default(uuid())
+  bankAccountId String
+  fitId         String        @unique // OFX Transaction ID to avoid duplicates
+  description   String
+  amount        Float
+  type          FinancialType
+  date          DateTime
+  isReconciled  Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+
+  bankAccount    BankAccount     @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  financialEntry FinancialEntry?
+}
+
+// --- NOVO: MÓDULO DE ESTOQUE ---
+
+model Depot {
+  id        String   @id @default(uuid())
+  name      String
+  location  String?
+  companyId String
+  projectId String? // Opcional, se for almoxarifado de obra. Se null é almoxarifado central
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project    Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stockItems StockItem[]
+  receipts   GoodsReceipt[]
+  movements  StockMovement[]
+
+  transfersOut Transfer[] @relation("TransferSource")
+  transfersIn  Transfer[] @relation("TransferDestination")
+}
+
+model GoodsReceipt {
+  id              String   @id @default(uuid())
+  purchaseOrderId String
+  depotId         String
+  receivedById    String
+  createdAt       DateTime @default(now())
+
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  depot         Depot              @relation(fields: [depotId], references: [id])
+  receivedBy    User               @relation("ReceiptReceiverRelation", fields: [receivedById], references: [id])
+  items         GoodsReceiptItem[]
+}
+
+model GoodsReceiptItem {
+  id               String @id @default(uuid())
+  receiptId        String
+  materialName     String
+  orderedQuantity  Float
+  receivedQuantity Float
+
+  receipt GoodsReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+}
+
+model StockItem {
+  id              String   @id @default(uuid())
+  material        String
+  unit            String   @default("UN")
+  quantity        Float    @default(0)
+  averageUnitCost Float    @default(0) // Custo Médio Ponderado (CMP)
+  depotId         String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  depot          Depot           @relation(fields: [depotId], references: [id], onDelete: Cascade)
+  stockMovements StockMovement[]
+}
+
+enum MovementType {
+  ENTRY
+  EXIT // Consumo na obra ou descarte
+  TRANSFER_OUT // Envio para outro almoxarifado
+  TRANSFER_IN // Recebimento de outro almoxarifado
+}
+
+model StockMovement {
+  id             String       @id @default(uuid())
+  type           MovementType
+  quantity       Float
+  unitCost       Float // Custo no momento da movimentação (historicamente importante)
+  notes          String? // Campo livre para anotar usuário, romaneio, etc
+  stockItemId    String
+  depotId        String
+  projectStageId String? // Se foi consumido (EXIT), deve obrigar etapa
+  userId         String
+  createdAt      DateTime     @default(now())
+
+  stockItem    StockItem     @relation(fields: [stockItemId], references: [id])
+  depot        Depot         @relation(fields: [depotId], references: [id])
+  projectStage ProjectStage? @relation(fields: [projectStageId], references: [id])
+  user         User          @relation("MovementUserRelation", fields: [userId], references: [id])
+}
+
+model Transfer {
+  id          String   @id @default(uuid())
+  material    String
+  quantity    Float
+  fromDepotId String
+  toDepotId   String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  fromDepot Depot @relation("TransferSource", fields: [fromDepotId], references: [id])
+  toDepot   Depot @relation("TransferDestination", fields: [toDepotId], references: [id])
+  user      User  @relation("TransferSenderRelation", fields: [userId], references: [id])
+}
+
+// --- NOVO: MÓDULO GANTT E CURVA-S ---
+
+model StageDependency {
+  id            String @id @default(uuid())
+  predecessorId String
+  successorId   String
+
+  // Finish-to-Start: predecessor occurs before successor
+  predecessor ProjectStage @relation("PredecessorStages", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   ProjectStage @relation("SuccessorStages", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorId, successorId])
+}
+
+model StageDistribution {
+  id          String   @id @default(uuid())
+  stageId     String
+  periodStart DateTime
+  periodEnd   DateTime
+  percentage  Float
+
+  stage ProjectStage @relation(fields: [stageId], references: [id], onDelete: Cascade)
+
+  @@index([stageId])
+}
+
+// --- NOVO: MÓDULO DE MEDIÇÃO ---
+
+enum MeasurementStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+model Contract {
+  id                  String   @id @default(uuid())
+  supplierName        String
+  supplierCnpj        String?
+  totalValue          Float
+  retentionPercentage Float    @default(0) // Default 0%
+  projectId           String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  items        ContractItem[]
+  measurements Measurement[]
+}
+
+model ContractItem {
+  id             String   @id @default(uuid())
+  contractId     String
+  projectStageId String
+  description    String
+  unit           String
+  quantity       Float
+  unitPrice      Float
+  totalValue     Float // quantity * unitPrice
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  contract     Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  projectStage ProjectStage      @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+  measurements MeasurementItem[]
+}
+
+model Measurement {
+  id              String            @id @default(uuid())
+  contractId      String
+  status          MeasurementStatus @default(DRAFT)
+  grossValue      Float
+  retentionValue  Float
+  netValue        Float
+  notes           String?
+  rejectionReason String?
+  attachments     String[] // array of paths to supabase storage
+
+  measuredById String
+  approvedById String?
+  rejectedById String?
+
+  approvedAt DateTime?
+  rejectedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contract       Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  measuredBy     User              @relation("MeasurementMeasuredBy", fields: [measuredById], references: [id])
+  approvedBy     User?             @relation("MeasurementApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy     User?             @relation("MeasurementRejectedBy", fields: [rejectedById], references: [id])
+  items          MeasurementItem[]
+  financialEntry FinancialEntry?
+}
+
+model MeasurementItem {
+  id             String @id @default(uuid())
+  measurementId  String
+  contractItemId String
+  quantity       Float
+
+  measurement  Measurement  @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+  contractItem ContractItem @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+}
