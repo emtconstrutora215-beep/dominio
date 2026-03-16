@@ -126,10 +126,10 @@ export const scheduleRouter = router({
       while (queue.length > 0) {
          const currentId = queue.shift()!;
          const currentEnd = virtualEndDates.get(currentId)!;
-         const currentNode = stageMap.get(currentId)!;
+         const currentNode = stageMap.get(currentId) as any;
          
          for (const dep of currentNode.successors) {
-            const sucNode = stageMap.get(dep.successorId);
+            const sucNode = stageMap.get(dep.successorId) as any;
             if (!sucNode || !sucNode.startDate || !sucNode.endDate) continue;
 
             // In Finish-to-Start, successor's start date MUST be >= predecessor's end date
