@@ -96,7 +96,7 @@ export default function BIPage() {
         <h1 className="text-2xl font-bold">Relatório Gerencial - BI</h1>
         <p className="text-sm text-gray-500">
           Data: {new Date().toLocaleDateString('pt-BR')} | 
-          Projeto: {projectId === "all" ? "Todos os Projetos" : projects?.find(p => p.id === projectId)?.name || projectId} | 
+          Projeto: {projectId === "all" ? "Todos os Projetos" : (projects as any[])?.find((p: any) => p.id === projectId)?.name || projectId} | 
           Período: {dateRange === "all" ? "Todo" : dateRange === "last_30" ? "Últimos 30 Dias" : "Este Ano"}
         </p>
         <hr className="my-4" />
