@@ -37,6 +37,15 @@ export const catalogItemRouter = router({
       };
     }),
 
+  listAll: protectedProcedure.query(async ({ ctx }) => {
+    // Para selects rápidos (limite de 1000 para não travar navegador)
+    return ctx.prisma.catalogItem.findMany({
+      where: { companyId: ctx.companyId! },
+      orderBy: { description: 'asc' },
+      take: 1000,
+    });
+  }),
+
   listAllTypes: protectedProcedure.query(async ({ ctx }) => {
     // Buscar categorias unicas
     const results = await ctx.prisma.catalogItem.findMany({
