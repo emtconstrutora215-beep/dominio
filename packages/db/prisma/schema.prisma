@@ -45,6 +45,47 @@ enum FinancialType {
   EXPENSE
 }
 
+enum ContactType {
+  CLIENT
+  SUPPLIER
+  PROFESSIONAL
+}
+
+enum PersonType {
+  PHYSICAL
+  LEGAL
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum WorkRegime {
+  HOURLY
+  DAILY
+  MONTHLY
+  CONTRACTOR
+}
+
+enum SkillLevel {
+  BASIC
+  INTERMEDIATE
+  ADVANCED
+}
+
+model JobRole {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts  Contact[]
+
+  @@unique([name, companyId])
+}
+
 enum FinancialStatus {
   PENDING
   PARTIALLY_PAID
@@ -65,6 +106,7 @@ model Company {
   financialEntries FinancialEntry[]
   depots           Depot[]
   bankAccounts     BankAccount[]
+  contacts         Contact[]
 }
 
 model User {
@@ -88,6 +130,8 @@ model User {
   measurementsCreated  Measurement[] @relation("MeasurementMeasuredBy")
   measurementsApproved Measurement[] @relation("MeasurementApprovedBy")
   measurementsRejected Measurement[] @relation("MeasurementRejectedBy")
+  
+  contact Contact?
 }
 
 model Project {
@@ -510,4 +554,59 @@ model MeasurementItem {
 
   measurement  Measurement  @relation(fields: [measurementId], references: [id], onDelete: Cascade)
   contractItem ContractItem @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+}
+
+// --- NOVO: MÓDULO DE CONTATOS ---
+
+model Contact {
+  id        String      @id @default(uuid())
+  roles     ContactType[]
+  personType PersonType @default(LEGAL)
+  
+  // Dados comuns/mesclados
+  name      String      // Razão Social ou Nome Completo
+  tradeName String?     // Nome Fantasia (apenas PJ)
+  document  String?     @unique // CPF/CNPJ
+  
+  stateRegistration     String?
+  municipalRegistration String?
+  birthDate             DateTime? // Apenas PF
+
+  // Novos campos exclusivos RH/Profissional
+  gender                Gender?
+  rg                    String?
+  rgUf                  String?
+  childrenCount         Int?
+  motherName            String?
+  fatherName            String?
+  
+  workRegime            WorkRegime?
+  remunerationValue     Decimal?
+  jobRoleId             String?
+  jobRole               JobRole? @relation(fields: [jobRoleId], references: [id])
+  skillLevel            SkillLevel?
+  
+  admissionDate         DateTime?
+  dismissalDate         DateTime?
+
+  email     String?
+  phone     String?
+  notes     String?
+  
+  // Endereço
+  cep          String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  state        String?
+  city         String?
+  companyId String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId  String? @unique
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
