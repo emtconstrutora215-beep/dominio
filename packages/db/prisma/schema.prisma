@@ -610,3 +610,63 @@ model Contact {
   userId  String? @unique
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
+
+// --- NOVO: MÓDULO CATÁLOGO (Insumos e Composições) ---
+
+enum ItemType {
+  MATERIAL
+  LABOR
+  EQUIPMENT
+  SERVICE
+}
+
+model CatalogItem {
+  id          String   @id @default(uuid())
+  code        String?
+  description String
+  unit        String
+  type        ItemType @default(MATERIAL)
+  unitCost    Float    @default(0) // Valor Custo total/computado
+  
+  // Categorias extras e Custos Trabalhistas
+  typeCategory String? // Ex: areia, brita
+  base         String? // Ex: SINAPI, PRÓPRIA
+  salary       Float?  // Preço puro, antes de encargos
+  charges      Float?  // Percentagem sociotrabalhista (%)
+  benefits     Float?  // Valores diretos R$ (vt, vr)
+  
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  compositionItems CompositionItem[]
+  
+  @@unique([code, companyId])
+}
+
+model Composition {
+  id          String   @id @default(uuid())
+  code        String?
+  description String
+  unit        String
+  
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       CompositionItem[]
+
+  @@unique([code, companyId])
+}
+
+model CompositionItem {
+  id              String   @id @default(uuid())
+  compositionId   String
+  catalogItemId   String
+  quantity        Float    
+
+  composition     Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  catalogItem     CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+}

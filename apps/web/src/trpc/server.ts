@@ -14,6 +14,8 @@ import { measurementRouter } from './routers/measurement';
 import { biRouter } from './routers/bi';
 import { contactRouter } from './routers/contact';
 import { jobRoleRouter } from './routers/jobRole';
+import { catalogItemRouter } from './routers/catalogItem';
+import { compositionRouter } from './routers/composition';
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -31,6 +33,8 @@ export const appRouter = router({
   bi: biRouter,
   contact: contactRouter,
   jobRole: jobRoleRouter,
+  catalogItem: catalogItemRouter,
+  composition: compositionRouter,
 });
 
 export type AppRouter = typeof appRouter;
