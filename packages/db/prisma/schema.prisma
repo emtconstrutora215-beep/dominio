@@ -107,6 +107,8 @@ model Company {
   depots           Depot[]
   bankAccounts     BankAccount[]
   contacts         Contact[]
+  catalogItems     CatalogItem[]
+  compositions     Composition[]
 }
 
 model User {
