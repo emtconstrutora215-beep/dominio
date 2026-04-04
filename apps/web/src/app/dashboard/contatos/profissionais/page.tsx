@@ -263,7 +263,7 @@ export default function ProfissionaisPage() {
                           ))}
                         </select>
                         <Button type="button" variant="outline" size="icon" onClick={handleCreateNewRole} title="Cadastrar nova função">
-                          {createJobRole.isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
+                          {createJobRole.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
                         </Button>
                       </div>
                     </div>
