@@ -81,7 +81,7 @@ model JobRole {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  contacts  Contact[]
+  contacts Contact[]
 
   @@unique([name, companyId])
 }
@@ -93,9 +93,9 @@ enum FinancialStatus {
 }
 
 model Company {
-  id                String   @id @default(uuid())
-  name              String
-  cnpj              String?  @unique
+  id                  String   @id @default(uuid())
+  name                String
+  cnpj                String?  @unique
   approvalThreshold   Float    @default(5000)
   onboardingCompleted Boolean  @default(false)
   createdAt           DateTime @default(now())
@@ -132,7 +132,7 @@ model User {
   measurementsCreated  Measurement[] @relation("MeasurementMeasuredBy")
   measurementsApproved Measurement[] @relation("MeasurementApprovedBy")
   measurementsRejected Measurement[] @relation("MeasurementRejectedBy")
-  
+
   contact Contact?
 }
 
@@ -561,40 +561,40 @@ model MeasurementItem {
 // --- NOVO: MÓDULO DE CONTATOS ---
 
 model Contact {
-  id        String      @id @default(uuid())
-  roles     ContactType[]
-  personType PersonType @default(LEGAL)
-  
+  id         String        @id @default(uuid())
+  roles      ContactType[]
+  personType PersonType    @default(LEGAL)
+
   // Dados comuns/mesclados
-  name      String      // Razão Social ou Nome Completo
-  tradeName String?     // Nome Fantasia (apenas PJ)
-  document  String?     @unique // CPF/CNPJ
-  
+  name      String // Razão Social ou Nome Completo
+  tradeName String? // Nome Fantasia (apenas PJ)
+  document  String? @unique // CPF/CNPJ
+
   stateRegistration     String?
   municipalRegistration String?
   birthDate             DateTime? // Apenas PF
 
   // Novos campos exclusivos RH/Profissional
-  gender                Gender?
-  rg                    String?
-  rgUf                  String?
-  childrenCount         Int?
-  motherName            String?
-  fatherName            String?
-  
-  workRegime            WorkRegime?
-  remunerationValue     Decimal?
-  jobRoleId             String?
-  jobRole               JobRole? @relation(fields: [jobRoleId], references: [id])
-  skillLevel            SkillLevel?
-  
-  admissionDate         DateTime?
-  dismissalDate         DateTime?
+  gender        Gender?
+  rg            String?
+  rgUf          String?
+  childrenCount Int?
+  motherName    String?
+  fatherName    String?
 
-  email     String?
-  phone     String?
-  notes     String?
-  
+  workRegime        WorkRegime?
+  remunerationValue Decimal?
+  jobRoleId         String?
+  jobRole           JobRole?    @relation(fields: [jobRoleId], references: [id])
+  skillLevel        SkillLevel?
+
+  admissionDate DateTime?
+  dismissalDate DateTime?
+
+  email String?
+  phone String?
+  notes String?
+
   // Endereço
   cep          String?
   street       String?
@@ -603,7 +603,7 @@ model Contact {
   neighborhood String?
   state        String?
   city         String?
-  companyId String
+  companyId    String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -629,46 +629,46 @@ model CatalogItem {
   unit        String
   type        ItemType @default(MATERIAL)
   unitCost    Float    @default(0) // Valor Custo total/computado
-  
+
   // Categorias extras e Custos Trabalhistas
   typeCategory String? // Ex: areia, brita
   base         String? // Ex: SINAPI, PRÓPRIA
-  salary       Float?  // Preço puro, antes de encargos
-  charges      Float?  // Percentagem sociotrabalhista (%)
-  benefits     Float?  // Valores diretos R$ (vt, vr)
-  
-  companyId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  salary       Float? // Preço puro, antes de encargos
+  charges      Float? // Percentagem sociotrabalhista (%)
+  benefits     Float? // Valores diretos R$ (vt, vr)
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   compositionItems CompositionItem[]
-  
+
   @@unique([code, companyId])
 }
 
 model Composition {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   code        String?
   description String
   unit        String
-  
-  companyId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  items       CompositionItem[]
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items   CompositionItem[]
 
   @@unique([code, companyId])
 }
 
 model CompositionItem {
-  id              String   @id @default(uuid())
-  compositionId   String
-  catalogItemId   String
-  quantity        Float    
+  id            String @id @default(uuid())
+  compositionId String
+  catalogItemId String
+  quantity      Float
 
-  composition     Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
-  catalogItem     CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+  composition Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
+  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
 }

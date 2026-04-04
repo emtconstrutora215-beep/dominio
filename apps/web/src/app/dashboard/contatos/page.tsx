@@ -118,14 +118,16 @@ export default function ContatosHub() {
                     <p className="text-sm text-muted-foreground">{contact.email || "Sem e-mail"}</p>
                   </div>
                 </div>
-                <div>
-                  <span className={`px-2 py-1 text-xs rounded-full font-medium ${
-                    contact.type === 'CLIENT' ? 'bg-blue-100 text-blue-800' :
-                    contact.type === 'SUPPLIER' ? 'bg-orange-100 text-orange-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {contact.type === 'CLIENT' ? 'Cliente' : contact.type === 'SUPPLIER' ? 'Fornecedor' : 'Profissional'}
-                  </span>
+                <div className="flex gap-2">
+                  {contact.roles.map((role: string) => (
+                    <span key={role} className={`px-2 py-1 text-xs rounded-full font-medium ${
+                      role === 'CLIENT' ? 'bg-blue-100 text-blue-800' :
+                      role === 'SUPPLIER' ? 'bg-orange-100 text-orange-800' :
+                      'bg-green-100 text-green-800'
+                    }`}>
+                      {role === 'CLIENT' ? 'Cliente' : role === 'SUPPLIER' ? 'Fornecedor' : 'Profissional'}
+                    </span>
+                  ))}
                 </div>
               </div>
             ))}
