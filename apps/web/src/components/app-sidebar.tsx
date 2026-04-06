@@ -64,25 +64,25 @@ const items = [
     ],
   },
   {
-    title: "Obras",
-    url: "/dashboard/obras",
-    icon: HardHat,
-    children: [
-      { title: "Minhas Obras", url: "/dashboard/obras/minhas" },
-      { title: "Orçamento", url: "/dashboard/obras/orcamento" },
-      { title: "Medição de Obras", url: "/dashboard/obras/medicao" },
-      { title: "Diário de Obras", url: "/dashboard/obras/diario" },
-      { title: "Medição de Contratos", url: "/dashboard/obras/medicao-contratos" },
-      { title: "Gestão", url: "/dashboard/obras/gestao" },
-    ],
-  },
-  {
     title: "Estoque",
     url: "/dashboard/estoque",
     icon: Package,
     children: [
       { title: "Movimentações", url: "/dashboard/estoque/movimentacoes" },
       { title: "Depósitos", url: "/dashboard/estoque/depositos" },
+    ],
+  },
+  {
+    title: "Obras",
+    url: "/dashboard/obras",
+    icon: HardHat,
+    children: [
+      { title: "Minhas Obras", url: "/dashboard/obras/minhas" },
+      { title: "Orçamentos", url: "/dashboard/obras/orcamentos" },
+      { title: "Medição de Obras", url: "/dashboard/obras/medicao" },
+      { title: "Diário de Obras", url: "/dashboard/obras/diario" },
+      { title: "Medição de Contratos", url: "/dashboard/obras/medicao-contratos" },
+      { title: "Gestão", url: "/dashboard/obras/gestao" },
     ],
   },
   {
@@ -134,10 +134,10 @@ export function AppSidebar({ user }: { user: User }) {
       className="bg-[#1862a3] border-none text-white relative min-h-screen h-full py-2 select-none z-40 overflow-visible shadow-lg"
       style={{ "--sidebar-width": "85px" } as React.CSSProperties}
     >
-      <SidebarContent className="bg-transparent hide-scrollbar overflow-visible pb-16 pt-2">
-        <SidebarGroup className="p-0 border-none overflow-visible">
-          <SidebarGroupContent className="overflow-visible">
-            <SidebarMenu className="gap-2 px-0 overflow-visible">
+      <SidebarContent className="bg-transparent hide-scrollbar overflow-y-auto pb-16 pt-2">
+        <SidebarGroup className="p-0 border-none overflow-y-auto">
+          <SidebarGroupContent className="overflow-y-auto">
+            <SidebarMenu className="gap-2 px-0 overflow-y-auto">
               {items.map((item) => {
                 const isFeatured = item.featured;
                 

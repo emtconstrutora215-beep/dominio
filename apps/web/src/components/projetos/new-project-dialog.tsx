@@ -63,7 +63,7 @@ export function NewProjectDialog() {
       name: values.name,
       address: values.address || undefined,
       budget: values.budget,
-    });
+    } as any);
   }
 
   return (
