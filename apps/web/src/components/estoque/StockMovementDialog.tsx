@@ -88,7 +88,7 @@ export function StockMovementDialog({ onSuccess }: { onSuccess?: () => void }) {
   const isEquipment = catalogItem?.type === 'EQUIPMENT';
 
   // Fetch available assets if it's a departure (Exit or Transfer) and it's equipment
-  const { data: availableAssets } = trpc.stock.getAssets.useQuery(
+  const { data: availableAssets, isLoading: isLoadingAssets } = trpc.stock.getAssets.useQuery(
     { 
       catalogItemId: selectedCatalogId, 
       depotId: selectedDepotId, 
