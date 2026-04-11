@@ -43,7 +43,7 @@ export default function StockTransfersPage() {
   // eslint-disable-next-line react-hooks/incompatible-library
   const selectedFrom = form.watch("fromDepotId");
 
-  const { data: sourceBalances } = trpc.stock.getBalancesByDepot.useQuery(
+  const { data: sourceBalances } = trpc.stock.getInventory.useQuery(
     { depotId: selectedFrom },
     { enabled: !!selectedFrom }
   );
@@ -51,7 +51,8 @@ export default function StockTransfersPage() {
   const transferMutation = trpc.stock.transferStock.useMutation({
     onSuccess: () => {
       toast.success("Transferência realizada com sucesso!");
-      utils.stock.getBalancesByDepot.invalidate();
+      utils.stock.getInventory.invalidate();
+      utils.stock.getDepots.invalidate();
       form.reset({
         fromDepotId: form.getValues('fromDepotId'),
         toDepotId: form.getValues('toDepotId'),

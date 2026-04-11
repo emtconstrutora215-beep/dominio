@@ -11,7 +11,7 @@ export default function StockBalancesPage() {
   const [search, setSearch] = useState("");
   
   const { data: depots, isLoading: isLoadingDepots } = trpc.stock.getDepots.useQuery();
-  const { data: balances, isLoading: isLoadingBalances } = trpc.stock.getBalancesByDepot.useQuery(
+  const { data: balances, isLoading: isLoadingBalances } = trpc.stock.getInventory.useQuery(
     { depotId }, 
     { enabled: !!depotId }
   );

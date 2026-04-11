@@ -45,7 +45,7 @@ export default function StockExitsPage() {
   const selectedDepot = form.watch("depotId");
   const selectedProject = form.watch("projectId");
 
-  const { data: balances } = trpc.stock.getBalancesByDepot.useQuery(
+  const { data: balances } = trpc.stock.getInventory.useQuery(
     { depotId: selectedDepot },
     { enabled: !!selectedDepot }
   );
@@ -58,7 +58,8 @@ export default function StockExitsPage() {
   const exitMutation = trpc.stock.registerExit.useMutation({
     onSuccess: () => {
       toast.success("Saída de material e custo registrados com sucesso na etapa!");
-      utils.stock.getBalancesByDepot.invalidate();
+      utils.stock.getInventory.invalidate();
+      utils.stock.getDepots.invalidate();
       form.reset({
          depotId: form.getValues('depotId'),
          projectId: form.getValues('projectId'),

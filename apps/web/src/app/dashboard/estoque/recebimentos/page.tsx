@@ -26,7 +26,8 @@ export default function GoodsReceiptsPage() {
     onSuccess: () => {
       toast.success("Recebimento registrado com sucesso!");
       utils.purchasing.getOrders.invalidate();
-      utils.stock.getBalancesByDepot.invalidate();
+      utils.stock.getInventory.invalidate();
+      utils.stock.getDepots.invalidate();
       setSelectedOrder(null);
       setReceivedItems({});
       setDepotId("");
