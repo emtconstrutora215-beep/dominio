@@ -76,6 +76,14 @@ enum PaymentResponsibility {
   DIRECT_BILLING
 }
 
+enum BudgetItemType {
+  STAGE
+  SUB_STAGE
+  ITEM
+  COMPOSITION
+  INPUT
+}
+
 model ProjectContact {
   id        String   @id @default(uuid())
   name      String
@@ -130,6 +138,7 @@ model Company {
   contacts         Contact[]
   catalogItems     CatalogItem[]
   compositions     Composition[]
+  stockAssets      StockAsset[]
 }
 
 model User {
@@ -251,18 +260,33 @@ model Budget {
 }
 
 model BudgetItem {
-  id             String   @id @default(uuid())
+  id             String         @id @default(uuid())
   description    String
-  unit           String
-  quantity       Float
-  unitPrice      Float
-  bdi            Float    @default(0)
-  total          Float // quantity * unitPrice (custo total)
+  type           BudgetItemType @default(ITEM)
+  order          Int            @default(0)
+  unit           String         @default("UN")
+  quantity       Float          @default(1)
+  unitPrice      Float          @default(0)
+  bdi            Float          @default(0)
+  total          Float          @default(0) // quantity * unitPrice (custo total)
+
+  // Recursividade para árvore de orçamento
+  parentId       String?
+  parent         BudgetItem?    @relation("BudgetItemToBudgetItem", fields: [parentId], references: [id], onDelete: Cascade)
+  children       BudgetItem[]   @relation("BudgetItemToBudgetItem")
+
   projectStageId String
+  projectStage   ProjectStage   @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
+
+  // Vínculo opcional com Catálogo/Composições
+  catalogItemId  String?
+  catalogItem    CatalogItem?   @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
+  compositionId  String?
+  composition    Composition?   @relation(fields: [compositionId], references: [id], onDelete: SetNull)
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  projectStage         ProjectStage          @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
   purchaseRequestItems PurchaseRequestItem[]
 }
 
@@ -438,6 +462,7 @@ model Depot {
 
   transfersOut Transfer[] @relation("TransferSource")
   transfersIn  Transfer[] @relation("TransferDestination")
+  stockAssets  StockAsset[]
 }
 
 model GoodsReceipt {
@@ -473,6 +498,9 @@ model StockItem {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  catalogItemId   String?
+  catalogItem     CatalogItem? @relation(fields: [catalogItemId], references: [id])
+
   depot          Depot           @relation(fields: [depotId], references: [id], onDelete: Cascade)
   stockMovements StockMovement[]
 }
@@ -482,6 +510,38 @@ enum MovementType {
   EXIT // Consumo na obra ou descarte
   TRANSFER_OUT // Envio para outro almoxarifado
   TRANSFER_IN // Recebimento de outro almoxarifado
+}
+
+enum AssetStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+model StockAsset {
+  id            String      @id @default(uuid())
+  serialNumber  String?     // Opcional, nmero de srie do fabricante
+  tag           String?     @unique // Tag de patrimnio (ex: PAT-001)
+  status        AssetStatus @default(AVAILABLE)
+  
+  catalogItemId String
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id])
+  
+  currentDepotId String
+  currentDepot   Depot      @relation(fields: [currentDepotId], references: [id])
+  
+  companyId     String
+  company       Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  movements     StockMovement[]
+  
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([companyId])
+  @@index([catalogItemId])
+  @@index([currentDepotId])
 }
 
 model StockMovement {
@@ -494,9 +554,11 @@ model StockMovement {
   depotId        String
   projectStageId String? // Se foi consumido (EXIT), deve obrigar etapa
   userId         String
+  assetId        String? // Se for movimentao de um ativo individual
   createdAt      DateTime     @default(now())
 
   stockItem    StockItem     @relation(fields: [stockItemId], references: [id])
+  asset        StockAsset?   @relation(fields: [assetId], references: [id])
   depot        Depot         @relation(fields: [depotId], references: [id])
   projectStage ProjectStage? @relation(fields: [projectStageId], references: [id])
   user         User          @relation("MovementUserRelation", fields: [userId], references: [id])
@@ -710,6 +772,9 @@ model CatalogItem {
 
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   compositionItems CompositionItem[]
+  budgetItems      BudgetItem[]
+  stockItems       StockItem[]
+  stockAssets      StockAsset[]
 
   @@unique([code, companyId])
 }
@@ -726,6 +791,7 @@ model Composition {
 
   company Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   items   CompositionItem[]
+  budgetItems BudgetItem[]
 
   @@unique([code, companyId])
 }

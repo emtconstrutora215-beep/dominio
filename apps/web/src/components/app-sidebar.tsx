@@ -1,3 +1,5 @@
+"use client"
+
 import {
   Plus,
   LayoutGrid,
@@ -64,15 +66,6 @@ const items = [
     ],
   },
   {
-    title: "Estoque",
-    url: "/dashboard/estoque",
-    icon: Package,
-    children: [
-      { title: "Movimentações", url: "/dashboard/estoque/movimentacoes" },
-      { title: "Depósitos", url: "/dashboard/estoque/depositos" },
-    ],
-  },
-  {
     title: "Obras",
     url: "/dashboard/obras",
     icon: HardHat,
@@ -83,6 +76,15 @@ const items = [
       { title: "Diário de Obras", url: "/dashboard/obras/diario" },
       { title: "Medição de Contratos", url: "/dashboard/obras/medicao-contratos" },
       { title: "Gestão", url: "/dashboard/obras/gestao" },
+    ],
+  },
+  {
+    title: "Estoque",
+    url: "/dashboard/estoque",
+    icon: Package,
+    children: [
+      { title: "Movimentações", url: "/dashboard/estoque/movimentacoes" },
+      { title: "Depósitos", url: "/dashboard/estoque/depositos" },
     ],
   },
   {
@@ -192,7 +194,7 @@ export function AppSidebar({ user }: { user: User }) {
                 }
 
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.title} className="overflow-visible">
                     {ButtonContent}
                   </SidebarMenuItem>
                 )
