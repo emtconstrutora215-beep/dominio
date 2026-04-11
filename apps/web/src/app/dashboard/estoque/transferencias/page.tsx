@@ -23,7 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 const transferSchema = z.object({
   fromDepotId: z.string().min(1, "Selecione a origem"),
   toDepotId: z.string().min(1, "Selecione o destino"),
-  material: z.string().min(1, "Selecione o material para transferir"),
+  catalogItemId: z.string().min(1, "Selecione o material para transferir"),
   quantity: z.number().positive("A quantidade deve ser maior que 0"),
 }).refine(data => data.fromDepotId !== data.toDepotId, {
   message: "O almoxarifado de destino não pode ser o mesmo da origem",
@@ -37,7 +37,7 @@ export default function StockTransfersPage() {
 
   const form = useForm<z.infer<typeof transferSchema>>({
     resolver: zodResolver(transferSchema),
-    defaultValues: { fromDepotId: "", toDepotId: "", material: "", quantity: 0 }
+    defaultValues: { fromDepotId: "", toDepotId: "", catalogItemId: "", quantity: 0 }
   });
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -48,7 +48,7 @@ export default function StockTransfersPage() {
     { enabled: !!selectedFrom }
   );
 
-  const transferMutation = trpc.stock.transferStock.useMutation({
+  const transferMutation = trpc.stock.transferInventory.useMutation({
     onSuccess: () => {
       toast.success("Transferência realizada com sucesso!");
       utils.stock.getInventory.invalidate();
@@ -56,7 +56,7 @@ export default function StockTransfersPage() {
       form.reset({
         fromDepotId: form.getValues('fromDepotId'),
         toDepotId: form.getValues('toDepotId'),
-        material: "",
+        catalogItemId: "",
         quantity: 0
       });
     },
@@ -108,7 +108,7 @@ export default function StockTransfersPage() {
                   {selectedFrom && (
                     <FormField
                       control={form.control}
-                      name="material"
+                      name="catalogItemId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel className="text-orange-900">Material disponível na Origem</FormLabel>
@@ -116,7 +116,7 @@ export default function StockTransfersPage() {
                             <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                               <option value="" disabled>Selecione um item com saldo...</option>
                               {(sourceBalances as any[] | undefined)?.filter((b: any) => b.quantity > 0).map((b: any) => (
-                                <option key={b.id} value={b.material}>{b.material} (Saldo Disponível: {b.quantity} {b.unit})</option>
+                                <option key={b.id} value={b.catalogItemId}>{b.material} (Saldo Disponível: {b.quantity} {b.unit})</option>
                               ))}
                             </select>
                           </FormControl>

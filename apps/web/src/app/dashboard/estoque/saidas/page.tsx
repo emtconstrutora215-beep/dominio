@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const exitSchema = z.object({
   depotId: z.string().min(1, "Selecione o almoxarifado"),
-  material: z.string().min(1, "Selecione o material"),
+  catalogItemId: z.string().min(1, "Selecione o material"),
   quantity: z.number().positive("A quantidade deve ser maior que 0"),
   projectId: z.string().min(1, "Selecione a obra de destino"),
   projectStageId: z.string().min(1, "Selecione a etapa de consumo"),
@@ -38,7 +38,7 @@ export default function StockExitsPage() {
 
   const form = useForm<z.infer<typeof exitSchema>>({
     resolver: zodResolver(exitSchema),
-    defaultValues: { depotId: "", material: "", quantity: 0, projectId: "", projectStageId: "", notes: "" }
+    defaultValues: { depotId: "", catalogItemId: "", quantity: 0, projectId: "", projectStageId: "", notes: "" }
   });
 
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -64,7 +64,7 @@ export default function StockExitsPage() {
          depotId: form.getValues('depotId'),
          projectId: form.getValues('projectId'),
          projectStageId: form.getValues('projectStageId'),
-         material: "",
+         catalogItemId: "",
          quantity: 0,
          notes: ""
       });
@@ -116,7 +116,7 @@ export default function StockExitsPage() {
                   {selectedDepot && (
                     <FormField
                       control={form.control}
-                      name="material"
+                      name="catalogItemId"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Material a retirar</FormLabel>
@@ -124,7 +124,7 @@ export default function StockExitsPage() {
                             <select className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm" {...field}>
                               <option value="" disabled>Selecione o material disponível...</option>
                               {(balances as any[] | undefined)?.filter((b: any) => b.quantity > 0).map((b: any) => (
-                                <option key={b.id} value={b.material}>{b.material} (Saldo: {b.quantity} {b.unit})</option>
+                                <option key={b.id} value={b.catalogItemId}>{b.material} (Saldo: {b.quantity} {b.unit})</option>
                               ))}
                             </select>
                           </FormControl>

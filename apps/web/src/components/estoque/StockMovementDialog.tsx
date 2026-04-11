@@ -108,9 +108,31 @@ export function StockMovementDialog({ onSuccess }: { onSuccess?: () => void }) {
     onError: (err) => toast.error(err.message)
   });
 
+  const exitMutation = trpc.stock.registerExit.useMutation({
+    onSuccess: () => {
+      toast.success("Saída/Consumo registrados!");
+      setOpen(false);
+      form.reset();
+      utils.stock.invalidate();
+      onSuccess?.();
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
+  const transferMutation = trpc.stock.transferInventory.useMutation({
+    onSuccess: () => {
+      toast.success("Transferência realizada!");
+      setOpen(false);
+      form.reset();
+      utils.stock.invalidate();
+      onSuccess?.();
+    },
+    onError: (err) => toast.error(err.message)
+  });
+
   const onSubmit = (data: z.infer<typeof movementSchema>) => {
     if (isEquipment && (data.type === 'EXIT' || data.type === 'TRANSFER')) {
-        if (!data.assetIds || data.assetIds.length !== data.quantity) {
+        if (!data.assetIds || data.assetIds.length !== (data.quantity || 0)) {
             toast.error(`Selecione exatamente ${data.quantity} equipamentos registrados.`);
             return;
         }
@@ -124,9 +146,25 @@ export function StockMovementDialog({ onSuccess }: { onSuccess?: () => void }) {
         unitCost: data.unitCost || 0,
         notes: data.notes
       });
-    } else {
-      // TODO: Implement registerExit and transferInventory mutations in stockRouter if not done perfectly
-      toast.info("Processando movimentação...");
+    } else if (data.type === 'EXIT') {
+      exitMutation.mutate({
+        depotId: data.depotId,
+        catalogItemId: data.catalogItemId,
+        quantity: data.quantity,
+        projectStageId: data.projectStageId,
+        assetIds: data.assetIds,
+        notes: data.notes
+      });
+    } else if (data.type === 'TRANSFER') {
+      if (!data.toDepotId) return toast.error("Selecione o almoxarifado de destino.");
+      transferMutation.mutate({
+        fromDepotId: data.depotId,
+        toDepotId: data.toDepotId,
+        catalogItemId: data.catalogItemId,
+        quantity: data.quantity,
+        assetIds: data.assetIds,
+        notes: data.notes
+      });
     }
   };
 
