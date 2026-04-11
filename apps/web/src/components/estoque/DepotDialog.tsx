@@ -60,7 +60,7 @@ export function DepotDialog({
   const utils = trpc.useUtils();
   const isEditing = !!editDepot;
   
-  const { data: projects, isLoading: isLoadingProjects } = trpc.projects.listProjects.useQuery();
+  const { data: projects, isLoading: isLoadingProjects } = trpc.projects.getAll.useQuery();
 
   const form = useForm<z.infer<typeof depotSchema>>({
     resolver: zodResolver(depotSchema),
