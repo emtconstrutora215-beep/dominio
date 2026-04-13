@@ -98,7 +98,21 @@ export const projectsRouter = router({
 
     const clients = await ctx.prisma.contact.findMany({
       where: { companyId: ctx.companyId, roles: { has: 'CLIENT' } },
-      select: { id: true, name: true, document: true }
+      select: { 
+        id: true, 
+        name: true, 
+        document: true,
+        email: true,
+        phone: true,
+        cep: true,
+        street: true,
+        number: true,
+        complement: true,
+        neighborhood: true,
+        city: true,
+        state: true,
+        personType: true
+      }
     });
 
     const projects = await ctx.prisma.project.findMany({
