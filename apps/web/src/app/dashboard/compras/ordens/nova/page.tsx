@@ -39,12 +39,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2, 
-  ShoppingCart, 
-  Building2, 
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  ShoppingCart,
+  Building2,
   BadgeDollarSign,
   Loader2,
   PackageSearch
@@ -57,15 +57,15 @@ const formSchema = z.object({
   projectId: z.string().optional().nullable(),
   stageId: z.string().optional().nullable(),
   supplierId: z.string().min(1, "Selecione um fornecedor"),
-  freight: z.number().min(0).default(0),
-  otherExpenses: z.number().min(0).default(0),
-  taxes: z.number().min(0).default(0),
-  discounts: z.number().min(0).default(0),
-  deliveryDays: z.number().min(0).default(0),
+  freight: z.number().min(0),
+  otherExpenses: z.number().min(0),
+  taxes: z.number().min(0),
+  discounts: z.number().min(0),
+  deliveryDays: z.number().min(0),
   paymentTerms: z.string().min(1, "Informe a condição de pagamento"),
-  installments: z.number().min(1).default(1),
+  installments: z.number().min(1),
   firstDueDate: z.string().min(1, "Selecione a data de vencimento"),
-  category: z.string().default("Materiais"),
+  category: z.string(),
 });
 
 type OrderItem = {
@@ -81,7 +81,7 @@ export default function NewDirectOrderPage() {
   const [costCenterType, setCostCenterType] = useState<"PROJECT" | "HEADQUARTERS">("PROJECT");
   const [items, setItems] = useState<OrderItem[]>([]);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
-  
+
   const { data: projects } = trpc.projects.getAll.useQuery();
   const { data: suppliersData } = trpc.contact.list.useQuery({ type: 'SUPPLIER', perPage: 100 });
   const suppliers = suppliersData?.items || [];
@@ -121,7 +121,7 @@ export default function NewDirectOrderPage() {
     }
 
     const selectedSupplier = suppliers.find(s => s.id === values.supplierId);
-    
+
     createOrder.mutate({
       projectId: costCenterType === "PROJECT" ? values.projectId : null,
       supplierName: selectedSupplier?.name || "Fornecedor Direto",
@@ -191,7 +191,7 @@ export default function NewDirectOrderPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* 1. SELEÇÃO DE CENTRO DE CUSTO E FORNECEDOR */}
             <Card className="md:col-span-2 border-slate-200">
               <CardHeader className="bg-slate-50/50">
@@ -204,8 +204,8 @@ export default function NewDirectOrderPage() {
               <CardContent className="pt-6 space-y-6">
                 <div className="space-y-3">
                   <label className="text-sm font-semibold text-slate-700">Onde será alocado?</label>
-                  <RadioGroup 
-                    value={costCenterType} 
+                  <RadioGroup
+                    value={costCenterType}
                     onValueChange={(v: any) => setCostCenterType(v)}
                     className="flex gap-4"
                   >
@@ -231,11 +231,11 @@ export default function NewDirectOrderPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Selecione a Obra</FormLabel>
-                        <Select 
+                        <Select
                           onValueChange={(val) => {
                             field.onChange(val);
                             form.setValue("stageId", null); // Reset stage when project changes
-                          }} 
+                          }}
                           value={field.value || ""}
                         >
                           <FormControl>
@@ -331,10 +331,10 @@ export default function NewDirectOrderPage() {
                         <FormItem className="space-y-1">
                           <FormLabel className="text-slate-400">Parcelamento</FormLabel>
                           <FormControl>
-                            <Input 
-                              type="number" 
+                            <Input
+                              type="number"
                               className="bg-white/10 border-white/20 text-white h-11"
-                              {...field} 
+                              {...field}
                               onChange={e => field.onChange(parseInt(e.target.value))}
                             />
                           </FormControl>
@@ -351,10 +351,10 @@ export default function NewDirectOrderPage() {
                       <FormItem className="space-y-1">
                         <FormLabel className="text-slate-400">1º Vencimento</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="date" 
+                          <Input
+                            type="date"
                             className="bg-white/10 border-white/20 text-white h-11"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -363,7 +363,7 @@ export default function NewDirectOrderPage() {
                   />
                 </div>
 
-                <Button 
+                <Button
                   type="submit"
                   disabled={createOrder.isPending}
                   className="w-full bg-[#F07B2B] hover:bg-[#F07B2B]/90 text-white font-black h-14 rounded-2xl text-lg gap-2 shadow-2xl shadow-orange-500/10 mt-4 active:scale-95 transition-all"
@@ -384,10 +384,10 @@ export default function NewDirectOrderPage() {
                   </CardTitle>
                   <CardDescription>Liste os materiais ou serviços desta ordem.</CardDescription>
                 </div>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="sm" 
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setIsAddItemDialogOpen(true)}
                   className="h-10 rounded-xl px-4 border-slate-200 gap-1 bg-white hover:bg-slate-50"
                 >
@@ -417,25 +417,25 @@ export default function NewDirectOrderPage() {
                       items.map((item) => (
                         <TableRow key={item.id} className="hover:bg-transparent">
                           <TableCell className="py-4">
-                            <Input 
-                              placeholder="Ex: Cimento CP-II" 
-                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1" 
+                            <Input
+                              placeholder="Ex: Cimento CP-II"
+                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1"
                               value={item.description}
                               onChange={e => updateItem(item.id, 'description', e.target.value)}
                             />
                           </TableCell>
                           <TableCell>
-                            <Input 
-                              placeholder="SC" 
-                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1 text-center" 
+                            <Input
+                              placeholder="SC"
+                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1 text-center"
                               value={item.unit}
                               onChange={e => updateItem(item.id, 'unit', e.target.value)}
                             />
                           </TableCell>
                           <TableCell>
-                            <Input 
+                            <Input
                               type="number"
-                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1 text-center font-bold" 
+                              className="h-10 border-0 bg-slate-50 focus-visible:ring-1 text-center font-bold"
                               value={item.quantity}
                               onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value))}
                             />
@@ -443,20 +443,20 @@ export default function NewDirectOrderPage() {
                           <TableCell>
                             <div className="flex items-center gap-1 bg-slate-50 rounded-md px-2 focus-within:ring-1 ring-slate-200">
                               <span className="text-slate-400 text-xs">R$</span>
-                              <Input 
-                                type="number" 
+                              <Input
+                                type="number"
                                 step="0.01"
-                                className="h-10 border-0 bg-transparent text-right font-bold focus-visible:ring-0" 
+                                className="h-10 border-0 bg-transparent text-right font-bold focus-visible:ring-0"
                                 value={item.unitPrice}
                                 onChange={e => updateItem(item.id, 'unitPrice', parseFloat(e.target.value))}
                               />
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Button 
-                              type="button" 
-                              variant="ghost" 
-                              size="icon" 
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
                               onClick={() => removeItem(item.id)}
                               className="text-slate-400 hover:text-red-500 hover:bg-red-50"
                             >
@@ -577,7 +577,7 @@ export default function NewDirectOrderPage() {
         </form>
       </Form>
 
-      <AddBudgetItemDialog 
+      <AddBudgetItemDialog
         isOpen={isAddItemDialogOpen}
         onClose={() => setIsAddItemDialogOpen(false)}
         onConfirm={handleAddItemFromCatalog}
