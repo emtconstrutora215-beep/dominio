@@ -131,8 +131,7 @@ export default function NewDirectOrderPage() {
         quantity: i.quantity,
         unitPrice: i.unitPrice
       })),
-      projectId: values.projectId,
-      stageId: values.stageId,
+      stageId: costCenterType === "PROJECT" ? values.stageId : null,
       freight: values.freight,
       otherExpenses: values.otherExpenses,
       taxes: values.taxes,
