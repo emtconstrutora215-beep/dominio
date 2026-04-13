@@ -6,7 +6,7 @@ export const purchasingRouter = router({
   // ---- 1. PURCHASE REQUESTS ----
   getRequests: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.purchaseRequest.findMany({
-      where: { project: { companyId: ctx.companyId } },
+      where: { companyId: ctx.companyId! },
       orderBy: { createdAt: 'desc' },
       include: {
         requester: { select: { name: true } },
@@ -33,6 +33,7 @@ export const purchasingRouter = router({
         data: {
           projectId: input.projectId,
           requesterId: ctx.user.id,
+          companyId: ctx.companyId!,
           status: 'PENDING_APPROVAL',
           notes: input.notes,
           items: {
@@ -115,6 +116,69 @@ export const purchasingRouter = router({
       });
     }),
 
+  createStandaloneQuote: protectedProcedure
+    .input(z.object({
+      description: z.string().optional(),
+      projectId: z.string().optional().nullable(),
+      items: z.array(z.object({
+        description: z.string(),
+        unit: z.string(),
+        quantity: z.number().positive(),
+        catalogItemId: z.string().optional()
+      })),
+      suppliers: z.array(z.string()) // supplier IDs
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Usar a mesma companyId do requisitante/usuário
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 1. Create PurchaseRequest (Status: APPROVED so it goes straight to quotes)
+        const request = await tx.purchaseRequest.create({
+          data: {
+            status: 'APPROVED',
+            notes: input.description,
+            projectId: input.projectId,
+            requesterId: ctx.user.id,
+            companyId: ctx.companyId!,
+            approverId: ctx.user.id,
+            items: {
+              create: input.items.map((i: any) => ({
+                description: i.description,
+                unit: i.unit,
+                quantity: i.quantity
+              }))
+            }
+          }
+        });
+
+        // 2. Create the standalone Quote
+        const quote = await tx.quote.create({
+          data: {
+            requestId: request.id
+          }
+        });
+
+        // 3. Look up suppliers from db to get names, and attach them
+        if (input.suppliers.length > 0) {
+          const supplierContacts = await tx.contact.findMany({
+            where: { id: { in: input.suppliers } }
+          });
+          
+          await tx.quoteSupplier.createMany({
+            data: supplierContacts.map((s: any) => ({
+               quoteId: quote.id,
+               supplierName: s.name,
+               unitPrice: 0,
+               totalPrice: 0,
+               deliveryDays: 0,
+               paymentTerms: 'À Vista'
+            }))
+          });
+        }
+
+        return quote;
+      });
+    }),
+
   markWinningSupplier: protectedProcedure
     .input(z.object({
       quoteId: z.string(),
@@ -136,13 +200,18 @@ export const purchasingRouter = router({
   // ---- 3. PURCHASE ORDERS (ORDENS DE COMPRA) ----
   getOrders: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.purchaseOrder.findMany({
-      where: { quote: { request: { project: { companyId: ctx.companyId } } } },
+      where: { quote: { request: { companyId: ctx.companyId! } } },
       orderBy: { createdAt: 'desc' },
       include: {
         quote: {
           include: { 
             suppliers: { where: { isWinner: true } },
-            request: { select: { project: { select: { name: true } }, items: true } }
+            request: { 
+              include: { 
+                project: { select: { name: true } },
+                approver: { select: { name: true } }
+              } 
+            }
           }
         },
         financialEntries: true,
@@ -328,6 +397,105 @@ export const purchasingRouter = router({
         });
 
         return receipt;
+      });
+    }),
+
+  createDirectOrder: protectedProcedure
+    .input(z.object({
+      projectId: z.string().optional().nullable(),
+      stageId: z.string().optional().nullable(),
+      supplierName: z.string(),
+      items: z.array(z.object({
+        description: z.string(),
+        unit: z.string(),
+        quantity: z.number().positive(),
+        unitPrice: z.number().nonnegative(),
+      })),
+      freight: z.number().default(0),
+      otherExpenses: z.number().default(0),
+      taxes: z.number().default(0),
+      discounts: z.number().default(0),
+      deliveryDays: z.number().default(0),
+      paymentTerms: z.string().default('À Vista'),
+      installments: z.number().min(1).default(1),
+      firstDueDate: z.string(), // ISO date
+      category: z.string().default('Materiais'),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const itemsAmount = input.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const totalAmount = itemsAmount + input.freight + input.otherExpenses + input.taxes - input.discounts;
+
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 1. Create PurchaseRequest (Approved)
+        const request = await tx.purchaseRequest.create({
+          data: {
+            status: 'APPROVED',
+            projectId: input.projectId,
+            stageId: input.stageId,
+            requesterId: ctx.user.id,
+            companyId: ctx.companyId!,
+            approverId: ctx.user.id,
+            items: {
+              create: input.items.map(i => ({
+                description: i.description,
+                unit: i.unit,
+                quantity: i.quantity
+              }))
+            }
+          }
+        });
+
+        // 2. Create Quote
+        const quote = await tx.quote.create({
+          data: { requestId: request.id }
+        });
+
+        // 3. Create QuoteSupplier (Winner)
+        const winner = await tx.quoteSupplier.create({
+          data: {
+            quoteId: quote.id,
+            supplierName: input.supplierName,
+            unitPrice: itemsAmount / input.items.length, // approximation
+            totalPrice: itemsAmount,
+            deliveryDays: input.deliveryDays,
+            paymentTerms: input.paymentTerms,
+            freight: input.freight,
+            isWinner: true
+          }
+        });
+
+        // 4. Create PurchaseOrder
+        const order = await tx.purchaseOrder.create({
+          data: {
+            quoteId: quote.id,
+            status: 'AWAITING_RECEIPT',
+          }
+        });
+
+        // 5. Generate Installments (FinancialEntries)
+        const installmentAmount = totalAmount / input.installments;
+        const firstDate = new Date(input.firstDueDate);
+
+        const entries = Array.from({ length: input.installments }).map((_: any, idx: number) => {
+          const dueDate = new Date(firstDate);
+          dueDate.setMonth(dueDate.getMonth() + idx);
+          
+          return {
+            type: 'EXPENSE' as const,
+            category: input.category,
+            description: `Parcela ${idx + 1}/${input.installments} - ${input.supplierName} (Pedido Direto #${order.id.slice(-6).toUpperCase()})`,
+            amount: parseFloat(installmentAmount.toFixed(2)),
+            dueDate,
+            companyId: ctx.companyId!,
+            purchaseOrderId: order.id
+          };
+        });
+
+        await tx.financialEntry.createMany({
+          data: entries
+        });
+
+        return order;
       });
     })
 });

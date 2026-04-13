@@ -138,6 +138,7 @@ model Company {
   contacts         Contact[]
   catalogItems     CatalogItem[]
   compositions     Composition[]
+  purchaseRequests PurchaseRequest[]
   stockAssets      StockAsset[]
 }
 
@@ -248,6 +249,7 @@ model ProjectStage {
   predecessors  StageDependency[]   @relation("SuccessorStages") // Dependências que vêm ANTES desta etapa
   successors    StageDependency[]   @relation("PredecessorStages") // Dependências que vêm DEPOIS desta etapa
   distributions StageDistribution[] // Opcional, overrides lineares da Curva-S
+  purchaseRequests PurchaseRequest[]
 }
 
 model Budget {
@@ -310,13 +312,17 @@ model PurchaseRequest {
   status       RequestStatus @default(DRAFT)
   notes        String?
   rejectReason String?
-  projectId    String
+  projectId    String?
+  stageId      String?
   requesterId  String
+  companyId    String
   approverId   String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
-  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project   Project?              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stage     ProjectStage?         @relation(fields: [stageId], references: [id], onDelete: SetNull)
   requester User                  @relation("RequesterRelation", fields: [requesterId], references: [id])
   approver  User?                 @relation("ApproverRelation", fields: [approverId], references: [id])
   items     PurchaseRequestItem[]

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react";
 import { trpc } from "@/trpc/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-export default function QuoteMapPage({ params }: { params: { requestId: string } }) {
+export default function QuoteMapPage({ params }: { params: Promise<{ requestId: string }> }) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const requestId = params.requestId;
+  const { requestId } = use(params);
 
   const { data: quote, isLoading } = trpc.purchasing.getQuoteByRequest.useQuery({ requestId });
   

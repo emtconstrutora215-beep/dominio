@@ -25,9 +25,17 @@ export default function QuotesPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Mapa de Cotações</h1>
-        <p className="text-slate-500 mt-1">Selecione uma Solicitação Aprovada para gerenciar cotações com fornecedores.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Mapa de Cotações</h1>
+          <p className="text-slate-500 mt-1">Gerencie propostas de fornecedores e analise o melhor custo-benefício.</p>
+        </div>
+        <Link href="/dashboard/compras/cotacoes/nova">
+          <Button className="h-11 rounded-xl px-6 bg-[#F07B2B] hover:bg-[#F07B2B]/90 text-white font-bold gap-2">
+            <ArrowRight className="h-4 w-4" />
+            Nova Cotação Avulsa
+          </Button>
+        </Link>
       </div>
 
       <div className="border rounded-md bg-white">
@@ -54,7 +62,7 @@ export default function QuotesPage() {
                 <TableRow key={req.id}>
                   <TableCell className="font-mono text-xs text-slate-500">{req.id.slice(0, 8)}</TableCell>
                   <TableCell>{format(new Date(req.updatedAt), 'dd/MM/yyyy', { locale: ptBR })}</TableCell>
-                  <TableCell className="font-medium">{req.project.name}</TableCell>
+                  <TableCell className="font-medium">{req.project?.name || "Sede / Central"}</TableCell>
                   <TableCell>{req.requester.name}</TableCell>
                   <TableCell>{req.items.length} item(s)</TableCell>
                   <TableCell className="text-right">
