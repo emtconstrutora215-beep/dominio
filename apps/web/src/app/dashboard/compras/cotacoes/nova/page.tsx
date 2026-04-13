@@ -96,7 +96,7 @@ const quoteSchema = z.object({
     "QUOTED", 
     "FINISHED"
   ]),
-  priority: z.boolean().default(false),
+  priority: z.boolean(),
   necessityDate: z.string().min(1, "Data de necessidade é obrigatória"),
   requesterId: z.string().min(1, "Selecione um solicitante"),
   projectId: z.string().optional().nullable(),
