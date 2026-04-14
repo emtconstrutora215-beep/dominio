@@ -100,7 +100,6 @@ export const projectsRouter = router({
         orderBy: { createdAt: 'desc' },
         include: {
           client: true,
-          budget: true,
           users: { select: { id: true, name: true, email: true } }
         }
       });
