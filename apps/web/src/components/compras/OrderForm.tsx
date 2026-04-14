@@ -113,12 +113,12 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
   const [selectedContext, setSelectedContext] = useState<{ projectId: string | null, stageId: string | null } | null>(null);
   const [activeTab, setActiveTab] = useState("itens");
 
-  const { data: projects = [] } = trpc.projects.getProjects.useQuery();
-  const { data: users } = trpc.users.getUsers.useQuery();
-  const { data: suppliersData } = trpc.contacts.getContacts.useQuery();
+  const { data: projects = [] } = trpc.projects.getAll.useQuery();
+  const { data: users } = trpc.company.getUsers.useQuery();
+  const { data: suppliersData } = trpc.contact.list.useQuery({ type: 'SUPPLIER', perPage: 100 });
   
   const suppliers = useMemo(() => 
-    suppliersData?.filter(c => c.type === 'SUPPLIER') || [], 
+    suppliersData?.items || [], 
   [suppliersData]);
 
   const form = useForm<z.infer<typeof formSchema>>({
