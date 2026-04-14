@@ -47,6 +47,8 @@ export default function NewPurchaseRequestPage() {
   const form = useForm<z.infer<typeof requestSchema>>({
     resolver: zodResolver(requestSchema),
     defaultValues: {
+      projectId: "",
+      notes: "",
       items: [{ description: "", unit: "UN", quantity: 1 }]
     }
   });
@@ -108,7 +110,7 @@ export default function NewPurchaseRequestPage() {
                     <FormItem className="flex-1">
                       <FormLabel>Descrição do Material/Serviço</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: Cimento CP II 50kg" {...field} />
+                        <Input placeholder="Ex: Cimento CP II 50kg" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -121,7 +123,7 @@ export default function NewPurchaseRequestPage() {
                     <FormItem className="w-32">
                       <FormLabel>Unidade</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: SC, UN, M3" {...field} />
+                        <Input placeholder="Ex: SC, UN, M3" {...field} value={field.value || ""} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -134,7 +136,7 @@ export default function NewPurchaseRequestPage() {
                     <FormItem className="w-32">
                       <FormLabel>Quantidade</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                        <Input type="number" step="0.01" {...field} value={field.value ?? 0} onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -154,7 +156,7 @@ export default function NewPurchaseRequestPage() {
               <FormItem>
                 <FormLabel>Observações</FormLabel>
                 <FormControl>
-                  <Textarea placeholder="Detalhes adicionais para o comprador..." {...field} />
+                  <Textarea placeholder="Detalhes adicionais para o comprador..." {...field} value={field.value || ""} />
                 </FormControl>
               </FormItem>
             )}

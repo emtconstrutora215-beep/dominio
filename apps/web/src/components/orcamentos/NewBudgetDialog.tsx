@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/trpc/client";
 import { 
   Dialog, 
   DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
   DialogHeader, 
   DialogTitle, 
-  DialogTrigger 
+  DialogTrigger,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +20,12 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Plus, Building2, User, Loader2 } from "lucide-react";
+import { Plus, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type ProjectStatus = 'PLANNING' | 'BUDGETING' | 'IN_PROGRESS' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
 
 export function NewBudgetDialog({ trigger }: { trigger?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -32,6 +34,7 @@ export function NewBudgetDialog({ trigger }: { trigger?: React.ReactNode }) {
   // Inputs
   const [code, setCode] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [status, setStatus] = useState<ProjectStatus>("BUDGETING");
   
   // Queries
   const { data: options, isLoading } = trpc.projects.formOptions.useQuery(undefined, {
@@ -60,100 +63,150 @@ export function NewBudgetDialog({ trigger }: { trigger?: React.ReactNode }) {
     return client?.name || "Cliente Particular";
   }, [selectedProject, options]);
 
+  // Sync initial status when project changes
+  useEffect(() => {
+    if (selectedProject) {
+      setStatus(selectedProject.status as ProjectStatus || 'BUDGETING');
+    }
+  }, [selectedProject]);
+
   const handleStart = () => {
     if (!selectedProjectId) {
       toast.error("Selecione uma obra para começar.");
       return;
     }
-    createBudget.mutate({ projectId: selectedProjectId, code: code || undefined });
+    createBudget.mutate({ 
+      projectId: selectedProjectId, 
+      code: code || undefined,
+      status: status
+    });
   };
+
+  const selectTriggerClass = "h-11 border-slate-200 bg-white rounded-md focus:ring-1 focus:ring-blue-500 transition-all text-slate-600 font-medium";
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-11 px-8 shadow-xl shadow-emerald-100 transition-all active:scale-95 rounded-xl uppercase text-[11px] tracking-widest">
-            <Plus className="mr-2 h-5 w-5" /> NOVO ORÇAMENTO
+          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 px-6 shadow-sm transition-all active:scale-95 rounded-md text-sm">
+            <Plus className="mr-2 h-4 w-4" /> Novo
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none rounded-3xl shadow-2xl">
-        <DialogHeader className="p-8 bg-slate-900 text-white relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />
-          <DialogTitle className="text-2xl font-black uppercase tracking-tight relative z-10">Iniciar Orçamento</DialogTitle>
-          <DialogDescription className="text-slate-400 text-xs font-bold uppercase tracking-widest relative z-10">
-            Configure as informações iniciais da proposta
-          </DialogDescription>
+      <DialogContent className="sm:max-w-[550px] p-0 overflow-hidden border border-slate-200 rounded-lg shadow-2xl">
+        <DialogHeader className="px-10 pt-10 pb-6 bg-white">
+          <DialogTitle className="text-[26px] font-bold text-[#0066cc] leading-tight">
+            Primeiros passos para <br /> criar um orçamento
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="p-8 space-y-6 bg-white">
-          <div className="space-y-2.5">
-            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Código Identificador</Label>
+        <div className="px-10 pb-10 space-y-6 bg-white">
+          {/* Código */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-slate-500">Código do orçamento</Label>
             <Input 
               value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              placeholder="EX: ORC-2024-001" 
-              className="h-12 font-bold border-2 border-slate-100 bg-slate-50/50 focus-visible:ring-emerald-500 focus-visible:bg-white rounded-xl transition-all"
+              onChange={e => setCode(e.target.value)}
+              placeholder="0.5" 
+              className="h-11 border-slate-200 bg-white focus-visible:ring-1 focus-visible:ring-blue-500 rounded-md transition-all text-slate-600 font-medium"
             />
           </div>
 
-          <div className="space-y-2.5">
-            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Selecionar Obra</Label>
+          {/* Obra */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-slate-500">Obra</Label>
             <Select onValueChange={setSelectedProjectId} value={selectedProjectId}>
-              <SelectTrigger className="h-12 font-bold border-2 border-slate-100 bg-slate-50/50 rounded-xl focus:ring-emerald-500 text-slate-600">
-                <SelectValue placeholder={isLoading ? "Carregando obras..." : "Selecione a obra no banco..."} />
+              <SelectTrigger className={selectTriggerClass}>
+                <div className="flex items-center justify-between w-full pr-2">
+                  <SelectValue placeholder={isLoading ? "Carregando obras..." : "Selecione a obra..."} />
+                </div>
               </SelectTrigger>
-              <SelectContent className="rounded-2xl border-2 shadow-xl p-2">
-                {isLoading && (
-                   <div className="p-4 flex justify-center"><Loader2 className="w-5 h-5 animate-spin text-emerald-600" /></div>
-                )}
+              <SelectContent className="rounded-md border border-slate-200 shadow-xl">
                 {options?.projects.map(p => (
-                  <SelectItem key={p.id} value={p.id} className="font-bold py-3 rounded-lg focus:bg-emerald-50 focus:text-emerald-700">
-                    <div className="flex items-center gap-3">
-                      <Building2 className="w-4 h-4 opacity-40" />
-                      <div>
-                         <p className="leading-none">{p.name}</p>
-                         <p className="text-[9px] font-medium text-slate-400 uppercase mt-1">Cód: {p.code || 'S/N'}</p>
-                      </div>
-                    </div>
+                  <SelectItem key={p.id} value={p.id} className="py-2.5 font-medium text-slate-600">
+                    {p.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2.5">
-            <Label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Responsável / Cliente</Label>
-            <div className="h-12 flex items-center px-4 bg-slate-50 border-2 border-dotted border-slate-200 rounded-xl">
-              <User className="w-4 h-4 text-slate-300 mr-3" />
-              <span className="text-sm font-black text-slate-400 overflow-hidden whitespace-nowrap overflow-ellipsis">
-                {clientName || "Selecione uma obra primeiro..."}
+          {/* Cliente */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-slate-500">Cliente</Label>
+            <div className={cn(selectTriggerClass, "flex items-center px-3 justify-between bg-slate-50 border-slate-100 cursor-not-allowed")}>
+              <span className={cn("text-sm", clientName ? "text-slate-600" : "text-slate-400")}>
+                {clientName || "Aguardando seleção de obra..."}
               </span>
+              {clientName && (
+                <div className="flex items-center gap-2">
+                   <X className="w-3.5 h-3.5 text-slate-400" />
+                   <div className="w-px h-4 bg-slate-200" />
+                   <ChevronDownIcon className="w-4 h-4 text-slate-400" />
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Status */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-slate-500">Status da obra</Label>
+            <Select onValueChange={(v) => setStatus(v as ProjectStatus)} value={status}>
+              <SelectTrigger className={selectTriggerClass}>
+                <SelectValue placeholder="Selecione o status..." />
+              </SelectTrigger>
+              <SelectContent className="rounded-md border border-slate-200 shadow-xl">
+                <SelectItem value="PLANNING">A Iniciar</SelectItem>
+                <SelectItem value="BUDGETING">Em Orçamento</SelectItem>
+                <SelectItem value="IN_PROGRESS">Em Andamento</SelectItem>
+                <SelectItem value="PAUSED">Pausado</SelectItem>
+                <SelectItem value="COMPLETED">Finalizado</SelectItem>
+                <SelectItem value="CANCELLED">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
-        <DialogFooter className="p-8 bg-slate-50 flex flex-row justify-between gap-4 border-t border-slate-100">
+        <DialogFooter className="px-10 py-8 bg-white flex flex-row justify-between items-center sm:justify-between border-t border-slate-50">
           <Button 
-            variant="ghost" 
-            className="font-black uppercase text-[10px] tracking-widest h-12 flex-1 hover:bg-slate-200/50 text-slate-500" 
+            variant="outline" 
+            className="h-11 px-8 rounded-md border-slate-200 text-slate-500 font-medium hover:bg-slate-50" 
             onClick={() => setOpen(false)}
           >
             Cancelar
           </Button>
           <Button 
-            className="bg-emerald-600 hover:bg-emerald-700 font-black uppercase text-[10px] tracking-widest h-12 flex-1 shadow-xl shadow-emerald-100 active:scale-95 transition-all"
+            className="bg-[#5cb85c] hover:bg-[#4cae4c] text-white font-bold h-11 px-10 rounded-md shadow-sm transition-all active:scale-95"
             disabled={createBudget.isPending || !selectedProjectId}
             onClick={handleStart}
           >
             {createBudget.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              "Começar Orçamento"
+              "Começar"
             )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ChevronDownIcon(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
   );
 }

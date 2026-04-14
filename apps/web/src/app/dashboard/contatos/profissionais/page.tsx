@@ -81,7 +81,30 @@ export default function ProfissionaisPage() {
   });
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ProfissionalFormData>({
-    defaultValues: { personType: 'PHYSICAL' }
+    defaultValues: {
+      personType: 'PHYSICAL',
+      name: "",
+      document: "",
+      rg: "",
+      rgUf: "",
+      birthDate: "",
+      childrenCount: 0,
+      motherName: "",
+      fatherName: "",
+      jobRoleId: "",
+      email: "",
+      phone: "",
+      notes: "",
+      cep: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      state: "",
+      city: "",
+      admissionDate: "",
+      dismissalDate: "",
+    }
   });
 
   const currentRegime = watch("workRegime");
@@ -197,7 +220,7 @@ export default function ProfissionaisPage() {
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
                     <div className="space-y-2 md:col-span-4">
                       <label className="text-sm font-medium">Nome Completo *</label>
-                      <Input {...register("name", { required: true })} placeholder="Nome oficial na carteira" />
+                      <Input {...register("name", { required: true })} value={watch("name") || ""} placeholder="Nome oficial na carteira" />
                       {errors.name && <span className="text-xs text-red-500">Obrigatório</span>}
                     </div>
                     <div className="space-y-2 md:col-span-2">
@@ -211,42 +234,42 @@ export default function ProfissionaisPage() {
 
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-sm font-medium">CPF</label>
-                      <Input {...register("document")} placeholder="000.000.000-00" />
+                      <Input {...register("document")} value={watch("document") || ""} placeholder="000.000.000-00" />
                     </div>
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-sm font-medium">RG</label>
-                      <Input {...register("rg")} placeholder="00.000.000-0" />
+                      <Input {...register("rg")} value={watch("rg") || ""} placeholder="00.000.000-0" />
                     </div>
                     <div className="space-y-2 md:col-span-1">
                       <label className="text-sm font-medium">UF RG</label>
-                      <Input {...register("rgUf")} placeholder="SP" />
+                      <Input {...register("rgUf")} value={watch("rgUf") || ""} placeholder="SP" />
                     </div>
 
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-sm font-medium">Data de Nascimento</label>
-                      <Input type="date" {...register("birthDate")} />
+                      <Input type="date" {...register("birthDate")} value={watch("birthDate") || ""} />
                     </div>
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-sm font-medium">Quantidade de Filhos</label>
-                      <Input type="number" {...register("childrenCount")} placeholder="0" min="0" />
+                      <Input type="number" {...register("childrenCount")} value={watch("childrenCount") ?? 0} placeholder="0" min="0" />
                     </div>
 
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-sm font-medium">Nome da Mãe</label>
-                      <Input {...register("motherName")} placeholder="Afiliação Materna" />
+                      <Input {...register("motherName")} value={watch("motherName") || ""} placeholder="Afiliação Materna" />
                     </div>
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-sm font-medium">Nome do Pai</label>
-                      <Input {...register("fatherName")} placeholder="Afiliação Paterna" />
+                      <Input {...register("fatherName")} value={watch("fatherName") || ""} placeholder="Afiliação Paterna" />
                     </div>
 
                     <div className="space-y-2 md:col-span-3 mt-4">
                       <label className="text-sm font-medium">Telefone Celular</label>
-                      <Input {...register("phone")} placeholder="(11) 90000-0000" />
+                      <Input {...register("phone")} value={watch("phone") || ""} placeholder="(11) 90000-0000" />
                     </div>
                     <div className="space-y-2 md:col-span-3 mt-4">
                       <label className="text-sm font-medium">E-mail</label>
-                      <Input type="email" {...register("email")} placeholder="trabalhador@email.com" />
+                      <Input type="email" {...register("email")} value={watch("email") || ""} placeholder="trabalhador@email.com" />
                     </div>
                   </div>
                 </div>
@@ -306,17 +329,17 @@ export default function ProfissionaisPage() {
                            currentRegime === 'MONTHLY' ? 'Valor Remuneração por Mês (R$)' : 
                            'Valor do Contrato de Empreitada (R$)'}
                         </label>
-                        <Input type="number" step="0.01" {...register("remunerationValue")} placeholder="0.00" className="max-w-[200px]" />
+                        <Input type="number" step="0.01" {...register("remunerationValue")} value={watch("remunerationValue") ?? 0} placeholder="0.00" className="max-w-[200px]" />
                       </div>
                     )}
 
                     <div className="space-y-2 pt-4 border-t">
                       <label className="text-sm font-medium">Data de Admissão</label>
-                      <Input type="date" {...register("admissionDate")} />
+                      <Input type="date" {...register("admissionDate")} value={watch("admissionDate") || ""} />
                     </div>
                     <div className="space-y-2 pt-4 border-t">
                       <label className="text-sm font-medium text-slate-500">Data de Demissão (se aplicável)</label>
-                      <Input type="date" {...register("dismissalDate")} />
+                      <Input type="date" {...register("dismissalDate")} value={watch("dismissalDate") || ""} />
                     </div>
                   </div>
                 </div>
@@ -325,33 +348,33 @@ export default function ProfissionaisPage() {
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">CEP</label>
-                      <Input {...register("cep")} placeholder="00000-000" onBlur={handleCepBlur} />
+                      <Input {...register("cep")} value={watch("cep") || ""} placeholder="00000-000" onBlur={handleCepBlur} />
                     </div>
                     <div className="space-y-2 md:col-span-4">
                       <label className="text-xs font-medium text-slate-500">Rua / Logradouro</label>
-                      <Input {...register("street")} placeholder="Endereço da moradia..." />
+                      <Input {...register("street")} value={watch("street") || ""} placeholder="Endereço da moradia..." />
                     </div>
                     
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">Número</label>
-                      <Input id="number-input" {...register("number")} placeholder="Ex: 102" />
+                      <Input id="number-input" {...register("number")} value={watch("number") || ""} placeholder="Ex: 102" />
                     </div>
                     <div className="space-y-2 md:col-span-4">
                       <label className="text-xs font-medium text-slate-500">Complemento</label>
-                      <Input {...register("complement")} placeholder="Apto, bloco..." />
+                      <Input {...register("complement")} value={watch("complement") || ""} placeholder="Apto, bloco..." />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">Bairro</label>
-                      <Input {...register("neighborhood")} placeholder="Bairro" />
+                      <Input {...register("neighborhood")} value={watch("neighborhood") || ""} placeholder="Bairro" />
                     </div>
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-xs font-medium text-slate-500">Cidade</label>
-                      <Input {...register("city")} placeholder="Cidade" />
+                      <Input {...register("city")} value={watch("city") || ""} placeholder="Cidade" />
                     </div>
                     <div className="space-y-2 md:col-span-1">
                       <label className="text-xs font-medium text-slate-500">UF</label>
-                      <Input {...register("state")} placeholder="UF" />
+                      <Input {...register("state")} value={watch("state") || ""} placeholder="UF" />
                     </div>
                   </div>
                 </div>

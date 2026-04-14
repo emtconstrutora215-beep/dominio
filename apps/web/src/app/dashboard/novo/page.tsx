@@ -129,13 +129,44 @@ function NovaObraForm() {
       status: (statusParam as any) || "PLANNING",
       type: "",
       code: "",
+      clientId: "",
+      users: [],
       showInFinancial: true,
       showInInvoicing: true,
       showInPurchasing: true,
+      totalArea: null,
+      areaUnit: "m2",
+      art: "",
+      ceiCno: "",
+      technicalLeadId: "",
+      projectManagerId: "",
+      address: "",
+      budget: null,
+      cep: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      city: "",
+      state: "",
       paymentResponsibility: "COMPANY",
-      hasInvoicingData: false,
+      defaultBankAccountId: "",
       projectContacts: [],
-      users: []
+      hasInvoicingData: false,
+      invoicingContact: {
+        personType: 'LEGAL',
+        name: "",
+        document: "",
+        email: "",
+        phone: "",
+        cep: "",
+        street: "",
+        number: "",
+        complement: "",
+        neighborhood: "",
+        city: "",
+        state: ""
+      }
     }
   });
 
@@ -383,10 +414,10 @@ function NovaObraForm() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="art" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">A.R.T.</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">A.R.T.</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="ceiCno" render={({ field }) => (
-                    <FormItem><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">CEI / CNO</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">CEI / CNO</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
 
                   <FormField control={form.control} name="technicalLeadId" render={({ field }: { field: any }) => (
@@ -436,22 +467,22 @@ function NovaObraForm() {
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="street" render={({ field }) => (
-                    <FormItem className="col-span-4"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Logradouro/Rua</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-4"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Logradouro/Rua</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="number" render={({ field }) => (
-                    <FormItem className="col-span-2"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Número</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-2"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Número</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="complement" render={({ field }) => (
-                    <FormItem className="col-span-4"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Complemento</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-4"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Complemento</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="neighborhood" render={({ field }) => (
-                    <FormItem className="col-span-2"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Bairro</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-2"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Bairro</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="city" render={({ field }) => (
-                    <FormItem className="col-span-3"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Cidade</FormLabel><FormControl><Input {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-3"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Cidade</FormLabel><FormControl><Input {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                   <FormField control={form.control} name="state" render={({ field }) => (
-                    <FormItem className="col-span-1"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">UF</FormLabel><FormControl><Input placeholder="SP" maxLength={2} {...field} className="h-11 border-2 font-medium" /></FormControl></FormItem>
+                    <FormItem className="col-span-1"><FormLabel className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">UF</FormLabel><FormControl><Input placeholder="SP" maxLength={2} {...field} value={field.value || ""} className="h-11 border-2 font-medium" /></FormControl></FormItem>
                   )} />
                 </CardContent>
               </Card>

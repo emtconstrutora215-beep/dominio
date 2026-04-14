@@ -33,12 +33,27 @@ export default function BudgetDetailsPage() {
     onSuccess: () => {
       toast.success("Etapa adicionada!");
       utils.budget.getProjectBudget.invalidate({ projectId: id });
+    },
+    onError: (err) => {
+      toast.error(`Erro ao adicionar etapa: ${err.message}`);
+    }
+  });
+
+  const updateStage = trpc.budget.updateStage.useMutation({
+    onSuccess: () => {
+      utils.budget.getProjectBudget.invalidate({ projectId: id });
+    },
+    onError: (err) => {
+      toast.error(`Erro ao atualizar etapa: ${err.message}`);
     }
   });
 
   const addItem = trpc.budget.addBudgetItem.useMutation({
     onSuccess: () => {
       utils.budget.getProjectBudget.invalidate({ projectId: id });
+    },
+    onError: (err) => {
+      toast.error(`Erro ao adicionar item: ${err.message}`);
     }
   });
 
@@ -109,8 +124,11 @@ export default function BudgetDetailsPage() {
                 const item = await addItem.mutateAsync(payload);
                 return item;
               }}
-              onAddStage={(name) => {
-                addStage.mutate({ projectId: id, name });
+              onAddStage={(name, bdi) => {
+                addStage.mutate({ projectId: id, name, bdi });
+              }}
+              onUpdateStage={(stageId, data) => {
+                updateStage.mutate({ id: stageId, ...data });
               }}
             />
           </div>

@@ -209,11 +209,13 @@ export const purchasingRouter = router({
             request: { 
               include: { 
                 project: { select: { name: true } },
-                approver: { select: { name: true } }
+                approver: { select: { name: true } },
+                items: true // Incluindo itens da requisição para ver preços individuais
               } 
             }
           }
         },
+        approver: { select: { name: true, image: true } },
         financialEntries: true,
         goodsReceipts: {
           include: { items: true }
@@ -221,6 +223,47 @@ export const purchasingRouter = router({
       }
     });
   }),
+
+  getOrderById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const order = await ctx.prisma.purchaseOrder.findUnique({
+        where: { id: input.id },
+        include: {
+          quote: {
+            include: { 
+              suppliers: { where: { isWinner: true } },
+              request: { 
+                include: { 
+                  project: { select: { name: true } },
+                  approver: { select: { name: true } },
+                  items: {
+                    include: {
+                      project: { select: { name: true } },
+                      stage: { select: { name: true } }
+                    }
+                  }
+                } 
+              }
+            }
+          },
+          approver: { select: { name: true, image: true } },
+          financialEntries: true,
+          goodsReceipts: {
+            include: { items: true }
+          }
+        }
+      });
+
+      if (!order) throw new TRPCError({ code: 'NOT_FOUND', message: 'Ordem de compra não encontrada.' });
+      
+      // Verificação de segurança: garantir que a ordem pertence à empresa do usuário
+      if (order.quote.request.companyId !== ctx.companyId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para acessar esta ordem.' });
+      }
+
+      return order;
+    }),
 
   generateOrder: protectedProcedure
     .input(z.object({
@@ -410,6 +453,8 @@ export const purchasingRouter = router({
         unit: z.string(),
         quantity: z.number().positive(),
         unitPrice: z.number().nonnegative(),
+        projectId: z.string().optional().nullable(),
+        stageId: z.string().optional().nullable(),
       })),
       freight: z.number().default(0),
       otherExpenses: z.number().default(0),
@@ -420,6 +465,8 @@ export const purchasingRouter = router({
       installments: z.number().min(1).default(1),
       firstDueDate: z.string(), // ISO date
       category: z.string().default('Materiais'),
+      orderNumber: z.string().optional(),
+      approverId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const itemsAmount = input.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
@@ -439,7 +486,10 @@ export const purchasingRouter = router({
               create: input.items.map(i => ({
                 description: i.description,
                 unit: i.unit,
-                quantity: i.quantity
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+                projectId: i.projectId,
+                stageId: i.stageId
               }))
             }
           }
@@ -469,6 +519,8 @@ export const purchasingRouter = router({
           data: {
             quoteId: quote.id,
             status: 'AWAITING_RECEIPT',
+            number: input.orderNumber,
+            approverId: input.approverId,
           }
         });
 
@@ -496,6 +548,134 @@ export const purchasingRouter = router({
         });
 
         return order;
+      });
+    }),
+
+  updateDirectOrder: protectedProcedure
+    .input(z.object({
+      orderId: z.string(),
+      projectId: z.string().optional().nullable(),
+      stageId: z.string().optional().nullable(),
+      supplierName: z.string(),
+        items: z.array(z.object({
+        id: z.string().optional(),
+        description: z.string(),
+        unit: z.string(),
+        quantity: z.number().positive(),
+        unitPrice: z.number().nonnegative(),
+        projectId: z.string().optional().nullable(),
+        stageId: z.string().optional().nullable(),
+      })),
+      freight: z.number().default(0),
+      otherExpenses: z.number().default(0),
+      taxes: z.number().default(0),
+      discounts: z.number().default(0),
+      deliveryDays: z.number().default(0),
+      paymentTerms: z.string().default('À Vista'),
+      installments: z.number().min(1).default(1),
+      firstDueDate: z.string(),
+      category: z.string().default('Materiais'),
+      orderNumber: z.string().optional(),
+      approverId: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Fetch existing order and check if editable
+      const existingOrder = await ctx.prisma.purchaseOrder.findUnique({
+        where: { id: input.orderId },
+        include: { 
+          quote: { 
+            include: { 
+              request: true,
+              suppliers: { where: { isWinner: true } }
+            } 
+          } 
+        }
+      });
+
+      if (!existingOrder) throw new TRPCError({ code: 'NOT_FOUND' });
+      
+      // BLOQUEIO: Se já tiver recebimentos físicos ou status for RECEIVED/PARTIALLY_RECEIVED
+      if (existingOrder.status !== 'AWAITING_RECEIPT' && existingOrder.status !== 'ISSUED') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Esta ordem não pode ser editada pois já possui recebimentos ou status avançado.' });
+      }
+
+      const itemsAmount = input.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+      const totalAmount = itemsAmount + input.freight + input.otherExpenses + input.taxes - input.discounts;
+
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 2. Update PurchaseRequest
+        await tx.purchaseRequest.update({
+          where: { id: existingOrder.quote.request.id },
+          data: {
+            projectId: input.projectId,
+            stageId: input.stageId,
+            items: {
+              deleteMany: {}, // Simplificado: remove tudo e recria para manter sync com o form
+              create: input.items.map(i => ({
+                description: i.description,
+                unit: i.unit,
+                quantity: i.quantity,
+                unitPrice: i.unitPrice,
+                projectId: i.projectId,
+                stageId: i.stageId
+              }))
+            }
+          }
+        });
+
+        // 3. Update QuoteSupplier (Winner)
+        const winner = existingOrder.quote.suppliers[0];
+        if (winner) {
+          await tx.quoteSupplier.update({
+            where: { id: winner.id },
+            data: {
+              supplierName: input.supplierName,
+              unitPrice: itemsAmount / (input.items.length || 1),
+              totalPrice: itemsAmount,
+              deliveryDays: input.deliveryDays,
+              paymentTerms: input.paymentTerms,
+              freight: input.freight
+            }
+          });
+        }
+
+        // 4. Update Financial Entries (Delete and recreate)
+        await tx.financialEntry.deleteMany({
+          where: { purchaseOrderId: existingOrder.id }
+        });
+
+        const installmentAmount = totalAmount / input.installments;
+        const firstDate = new Date(input.firstDueDate);
+
+        const entries = Array.from({ length: input.installments }).map((_: any, idx: number) => {
+          const dueDate = new Date(firstDate);
+          dueDate.setMonth(dueDate.getMonth() + idx);
+          
+          return {
+            type: 'EXPENSE' as const,
+            category: input.category,
+            description: `Parcela ${idx + 1}/${input.installments} - ${input.supplierName} (Pedido Direto #${existingOrder.id.slice(-6).toUpperCase()})`,
+            amount: parseFloat(installmentAmount.toFixed(2)),
+            dueDate,
+            companyId: ctx.companyId!,
+            purchaseOrderId: existingOrder.id
+          };
+        });
+
+        await tx.financialEntry.createMany({
+          data: entries
+        });
+
+        // 5. Update Order metadata
+        await tx.purchaseOrder.update({
+          where: { id: existingOrder.id },
+          data: {
+            number: input.orderNumber,
+            approverId: input.approverId,
+          }
+        });
+
+        return existingOrder;
       });
     })
 });

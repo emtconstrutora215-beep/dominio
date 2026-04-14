@@ -57,7 +57,17 @@ export default function InsumosPage() {
   });
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<InsumoFormData>({
-    defaultValues: { type: 'MATERIAL', unitCost: 0, salary: 0, charges: 0, benefits: 0 }
+    defaultValues: {
+      type: 'MATERIAL',
+      code: "",
+      description: "",
+      unit: "",
+      typeCategory: "",
+      unitCost: 0,
+      salary: 0,
+      charges: 0,
+      benefits: 0
+    }
   });
 
   const selectedGroup = watch("type");
@@ -149,24 +159,24 @@ export default function InsumosPage() {
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Código</label>
-                    <Input {...register("code")} placeholder="Opcional" />
+                    <Input {...register("code")} value={watch("code") || ""} placeholder="Opcional" />
                   </div>
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Descrição *</label>
-                    <Input {...register("description", { required: true })} placeholder="Ex: Areia Média Lavada" />
+                    <Input {...register("description", { required: true })} value={watch("description") || ""} placeholder="Ex: Areia Média Lavada" />
                     {errors.description && <span className="text-xs text-red-500">A descrição é obrigatória</span>}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Unidade *</label>
-                      <Input {...register("unit", { required: true })} placeholder="Ex: m³, h, un" />
+                      <Input {...register("unit", { required: true })} value={watch("unit") || ""} placeholder="Ex: m³, h, un" />
                       {errors.unit && <span className="text-xs text-red-500">Obrigatória</span>}
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Tipo</label>
-                      <Input list="typeList" {...register("typeCategory")} placeholder="Ex: Areia, Pedra, Profissional" autoComplete="off" />
+                      <Input list="typeList" {...register("typeCategory")} value={watch("typeCategory") || ""} placeholder="Ex: Areia, Pedra, Profissional" autoComplete="off" />
                       <datalist id="typeList">
                         {existingTypes?.map((t: string) => <option key={t} value={t} />)}
                       </datalist>
@@ -178,15 +188,15 @@ export default function InsumosPage() {
                       <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-slate-700">Salário / Base (R$)</label>
-                          <Input type="number" step="0.01" {...register("salary")} placeholder="0.00" className="bg-white" />
+                          <Input type="number" step="0.01" {...register("salary")} value={watch("salary") ?? 0} placeholder="0.00" className="bg-white" />
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-slate-700">Encargos (%)</label>
-                          <Input type="number" step="0.01" {...register("charges")} placeholder="0.00" className="bg-white" />
+                          <Input type="number" step="0.01" {...register("charges")} value={watch("charges") ?? 0} placeholder="0.00" className="bg-white" />
                         </div>
                         <div className="space-y-2">
                           <label className="text-xs font-medium text-slate-700">Benefícios (R$)</label>
-                          <Input type="number" step="0.01" {...register("benefits")} placeholder="0.00" className="bg-white" />
+                          <Input type="number" step="0.01" {...register("benefits")} value={watch("benefits") ?? 0} placeholder="0.00" className="bg-white" />
                         </div>
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-blue-200">
@@ -199,7 +209,7 @@ export default function InsumosPage() {
                   ) : (
                     <div className="space-y-2 bg-slate-50 p-3 rounded border">
                       <label className="text-sm font-medium text-slate-700">Custo Base Unitário R$</label>
-                      <Input type="number" step="0.01" {...register("unitCost", { required: true })} placeholder="0.00" className="bg-white" />
+                      <Input type="number" step="0.01" {...register("unitCost", { required: true })} value={watch("unitCost") ?? 0} placeholder="0.00" className="bg-white" />
                     </div>
                   )}
 

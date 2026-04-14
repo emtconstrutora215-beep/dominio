@@ -99,13 +99,17 @@ export const budgetRouter = router({
     .input(z.object({
       projectId: z.string(),
       code: z.string().optional(),
+      status: z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional()
     }))
     .mutation(async ({ ctx, input }) => {
       // Atualiza o código na obra se fornecido
-      if (input.code) {
+      if (input.code || input.status) {
         await ctx.prisma.project.update({
           where: { id: input.projectId },
-          data: { code: input.code }
+          data: { 
+            code: input.code,
+            status: input.status
+          }
         });
       }
 
@@ -123,18 +127,47 @@ export const budgetRouter = router({
   addStage: protectedProcedure
     .input(z.object({
       projectId: z.string(),
-      name: z.string().min(1)
+      name: z.string().min(1),
+      bdi: z.number().optional()
     }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.projectStage.create({
         data: {
           projectId: input.projectId,
           name: input.name,
+          bdi: input.bdi ?? 0,
           plannedCost: 0,
           actualCost: 0,
           percentageComplete: 0
         }
       });
+    }),
+
+  updateStage: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      name: z.string().optional(),
+      bdi: z.number().optional(),
+      propagateBdi: z.boolean().optional()
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, propagateBdi, ...data } = input;
+      
+      const updated = await ctx.prisma.projectStage.update({
+        where: { id },
+        data
+      });
+
+      if (propagateBdi && typeof input.bdi === 'number') {
+        const stageBdi = input.bdi;
+        // Atualiza todos os itens do orçamento vinculados a esta etapa
+        await ctx.prisma.budgetItem.updateMany({
+          where: { projectStageId: id },
+          data: { bdi: stageBdi }
+        });
+      }
+
+      return updated;
     }),
 
   addBudgetItem: protectedProcedure
@@ -188,6 +221,7 @@ export const budgetRouter = router({
       bdi: z.number().optional(),
       order: z.number().optional(),
       type: z.enum(['STAGE', 'SUB_STAGE', 'ITEM', 'COMPOSITION', 'INPUT']).optional(),
+      propagateBdi: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
@@ -208,8 +242,29 @@ export const budgetRouter = router({
 
       const updated = await ctx.prisma.budgetItem.update({
         where: { id },
-        data
+        data: {
+          ...data,
+          propagateBdi: undefined // Remove do prisma update
+        } as any
       });
+
+      if (input.propagateBdi && typeof input.bdi === 'number') {
+        const targetBdi = input.bdi;
+        
+        // Função auxiliar para atualização recursiva (caso existam múltiplos níveis de sub-etapas)
+        const updateChildrenRecursively = async (parentId: string) => {
+          const children = await ctx.prisma.budgetItem.findMany({ where: { parentId } });
+          for (const child of children) {
+            await ctx.prisma.budgetItem.update({
+              where: { id: child.id },
+              data: { bdi: targetBdi }
+            });
+            await updateChildrenRecursively(child.id);
+          }
+        };
+
+        await updateChildrenRecursively(id);
+      }
 
       // Se o total mudou ou o item tem pai, precisamos rodar o rollup
       if (updated.parentId) {

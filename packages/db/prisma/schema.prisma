@@ -32,6 +32,12 @@ enum RequestStatus {
   REJECTED
 }
 
+enum ProposalStatus {
+  UNDER_ELABORATION
+  SOLD
+  DISCONTINUED
+}
+
 enum OrderStatus {
   ISSUED
   AWAITING_RECEIPT // Adicionado para fluxo de estoque
@@ -168,6 +174,7 @@ model User {
   projectsAccess     Project[]         @relation("ProjectUsers")
   projectsLead       Project[]         @relation("ProjectTechLead")
   projectsManaged    Project[]         @relation("ProjectManager")
+  approvedOrders       PurchaseOrder[] @relation("OrderApproverRelation")
 }
 
 model Project {
@@ -177,14 +184,16 @@ model Project {
   status    ProjectStatus @default(PLANNING)
   startDate DateTime?
   endDate   DateTime?
-  budget    Float         @default(0)
+  budget    Float         @default(0) // Preço (com BDI)
+  totalCost Float         @default(0) // Custo (soma de tudo)
   companyId String
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
-  code      String?
-  type      String?
-  clientId  String?
+  code           String?
+  type           String?
+  clientId       String?
+  proposalStatus ProposalStatus @default(UNDER_ELABORATION)
   
   technicalLeadId  String?
   technicalLead    User?  @relation("ProjectTechLead", fields: [technicalLeadId], references: [id])
@@ -226,6 +235,7 @@ model Project {
   depots           Depot[]
   financialSplits  FinancialEntrySplit[]
   contracts        Contract[]
+  purchaseRequestItems PurchaseRequestItem[]
 }
 
 model ProjectStage {
@@ -237,6 +247,7 @@ model ProjectStage {
   startDate          DateTime? // Gantt - Início planejado
   endDate            DateTime? // Gantt - Fim planejado
   projectId          String
+  bdi                Float     @default(0)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -244,6 +255,7 @@ model ProjectStage {
   budgetItems    BudgetItem[]
   stockMovements StockMovement[]
   contractItems  ContractItem[]
+  purchaseRequestItems PurchaseRequestItem[]
 
   // Gantt Relationships
   predecessors  StageDependency[]   @relation("SuccessorStages") // Dependências que vêm ANTES desta etapa
@@ -332,12 +344,17 @@ model PurchaseRequest {
 model PurchaseRequestItem {
   id           String  @id @default(uuid())
   requestId    String
+  projectId    String?
+  stageId      String?
   budgetItemId String?
   description  String
   unit         String
   quantity     Float
+  unitPrice    Float   @default(0)
 
   request    PurchaseRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  project    Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  stage      ProjectStage?   @relation(fields: [stageId], references: [id], onDelete: SetNull)
   budgetItem BudgetItem?     @relation(fields: [budgetItemId], references: [id], onDelete: SetNull)
 }
 
@@ -368,13 +385,16 @@ model QuoteSupplier {
 }
 
 model PurchaseOrder {
-  id        String      @id @default(uuid())
-  quoteId   String      @unique
-  status    OrderStatus @default(AWAITING_RECEIPT) // Modificado fluxo inicial
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id         String      @id @default(uuid())
+  number     String?     @unique
+  quoteId    String      @unique
+  approverId String?
+  status     OrderStatus @default(AWAITING_RECEIPT)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 
   quote            Quote            @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  approver         User?            @relation("OrderApproverRelation", fields: [approverId], references: [id], onDelete: SetNull)
   financialEntries FinancialEntry[]
   goodsReceipts    GoodsReceipt[]
 }
@@ -700,7 +720,7 @@ model Contact {
   // Dados comuns/mesclados
   name      String // Razão Social ou Nome Completo
   tradeName String? // Nome Fantasia (apenas PJ)
-  document  String? @unique // CPF/CNPJ
+  document  String? // CPF/CNPJ
 
   stateRegistration     String?
   municipalRegistration String?
@@ -746,6 +766,8 @@ model Contact {
 
   projectsAsClient Project[] @relation("ProjectClient")
   projectsAsInvoicingContact Project[] @relation("ProjectInvoicingContact")
+
+  @@unique([document, companyId])
 }
 
 // --- NOVO: MÓDULO CATÁLOGO (Insumos e Composições) ---

@@ -8,21 +8,22 @@ import {
   Box, 
   Plus, 
   Trash2, 
-  GripVertical,
   Package,
   Wrench,
-  Calculator
+  Calculator,
+  Check,
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { 
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 interface BudgetRowProps {
   item: any;
@@ -31,6 +32,10 @@ interface BudgetRowProps {
   onDelete: (id: string) => void;
   onAddChild: (parentId: string, type?: string) => void;
   indexPrefix: string;
+  addingItemTo?: any;
+  onSaveDraftItem?: () => void;
+  onCancelDraftItem?: () => void;
+  draftState?: any;
 }
 
 export function BudgetRow({ 
@@ -39,25 +44,31 @@ export function BudgetRow({
   onUpdate, 
   onDelete, 
   onAddChild,
-  indexPrefix 
+  indexPrefix,
+  addingItemTo,
+  onSaveDraftItem,
+  onCancelDraftItem,
+  draftState
 }: BudgetRowProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-
-  const getTypeStyles = (type: string) => {
-    switch (type) {
-      case 'STAGE': return "bg-slate-50 text-[#1A3C5E] font-bold border-l-4 border-l-[#1A3C5E]";
-      case 'SUB_STAGE': return "bg-slate-50/50 text-slate-700 font-semibold";
-      case 'ITEM': return "bg-white text-slate-800 font-semibold";
-      case 'COMPOSITION': return "bg-white text-blue-700 font-medium italic";
-      default: return "bg-white text-slate-600 font-normal";
-    }
-  };
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 }).format(val);
   };
 
   const hasChildren = item.children && item.children.length > 0;
+
+  const handleBdiChange = (value: number) => {
+    if (value === item.bdi) return;
+
+    let propagate = false;
+    if (item.type === 'SUB_STAGE' || hasChildren) {
+      propagate = confirm("Deseja aplicar este BDI a todos os itens abaixo desta sub-etapa?");
+      if (propagate) toast.info("Propagando BDI para sub-itens...");
+    }
+
+    onUpdate(item.id, { bdi: value, propagateBdi: propagate });
+  };
 
   return (
     <>
@@ -147,7 +158,7 @@ export function BudgetRow({
               type="number"
               className="w-full bg-slate-50 border border-slate-200 rounded text-center font-bold text-[11px] text-slate-600 focus:ring-[#1A3C5E]/20 pr-4 h-7"
               defaultValue={item.bdi || 0}
-              onBlur={(e) => onUpdate(item.id, { bdi: parseFloat(e.target.value) })}
+              onBlur={(e) => handleBdiChange(parseFloat(e.target.value) || 0)}
             />
             <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-300">%</span>
           </div>
@@ -175,6 +186,26 @@ export function BudgetRow({
         <div className="w-16 px-2 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           {item.type === 'ITEM' || item.type === 'SUB_STAGE' || item.type === 'STAGE' ? (
             <div className="flex gap-1">
+              {item.type === 'SUB_STAGE' && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-7 w-7 text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => onAddChild(item.id, 'SUB_STAGE')}
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-[10px] font-bold uppercase">Adicionar Sub-etapa</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -225,9 +256,60 @@ export function BudgetRow({
         </div>
       </div>
 
-      {isExpanded && hasChildren && (
+      {isExpanded && (
         <div className="flex flex-col">
-          {item.children.map((child: any, idx: number) => (
+          {/* Draft Row for Sub-Etapa (inside another Sub-Etapa / Item) */}
+          {addingItemTo?.parentId === item.id && (
+            <div className="flex items-center h-12 bg-slate-50/80 border-b border-slate-200 animate-in fade-in slide-in-from-top-1 duration-200" style={{ paddingLeft: `${(level + 1) * 16}px` }}>
+              <div className="w-[80px] shrink-0 px-4 flex items-center justify-center">
+                  <Box className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+              <div className="flex-1 px-4">
+                  <Input 
+                      ref={draftState.inputRef}
+                      value={draftState.name}
+                      onChange={e => draftState.setName(e.target.value)}
+                      onKeyDown={e => {
+                          if (e.key === 'Enter') onSaveDraftItem?.();
+                          if (e.key === 'Escape') onCancelDraftItem?.();
+                      }}
+                      placeholder="NOME DA SUB-ETAPA"
+                      className="h-8 bg-white border-slate-300 focus:ring-1 focus:ring-blue-500 font-bold text-[10px] uppercase"
+                  />
+              </div>
+              <div className="w-24 px-2"></div>
+              <div className="w-16 px-2"></div>
+              <div className="w-32 px-3"></div>
+              <div className="w-36 px-4 text-right">
+                  <span className="text-[10px] font-bold text-slate-400">R$ 0,00</span>
+              </div>
+              <div className="w-24 px-2 flex justify-center">
+                  <div className="relative">
+                      <Input 
+                          type="number"
+                          value={draftState.bdi}
+                          onChange={e => draftState.setBdi(parseFloat(e.target.value) || 0)}
+                          className="h-7 w-20 bg-white border-slate-200 text-center font-bold text-[10px] text-slate-600 pr-5"
+                      />
+                      <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-300">%</span>
+                  </div>
+              </div>
+              <div className="w-32 px-3"></div>
+              <div className="w-40 px-4 text-right flex items-center justify-end gap-1">
+                  <span className="text-[10px] font-bold text-slate-400">R$ 0,00</span>
+              </div>
+              <div className="w-16 flex items-center justify-center px-1">
+                  <Button size="icon" className="w-8 h-8 bg-[#5cb85c] hover:bg-[#4cae4c] text-white rounded-md" onClick={onSaveDraftItem}>
+                      <Check className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="w-8 h-8 text-slate-400" onClick={onCancelDraftItem}>
+                      <X className="w-4 h-4" />
+                  </Button>
+              </div>
+            </div>
+          )}
+
+          {item.children?.map((child: any, idx: number) => (
             <BudgetRow 
               key={child.id} 
               item={child} 
@@ -235,6 +317,10 @@ export function BudgetRow({
               onUpdate={onUpdate}
               onDelete={onDelete}
               onAddChild={onAddChild}
+              addingItemTo={addingItemTo}
+              onSaveDraftItem={onSaveDraftItem}
+              onCancelDraftItem={onCancelDraftItem}
+              draftState={draftState}
               indexPrefix={`${indexPrefix}.${idx + 1}`}
             />
           ))}

@@ -59,7 +59,12 @@ export default function ComposicoesPage() {
   });
 
   const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm<CompositionFormData>({
-    defaultValues: { items: [] }
+    defaultValues: {
+      code: "",
+      description: "",
+      unit: "",
+      items: []
+    }
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -158,16 +163,16 @@ export default function ComposicoesPage() {
                   <div className="grid grid-cols-6 gap-4 bg-blue-50/50 p-4 rounded-md border border-blue-100">
                     <div className="col-span-2 space-y-2">
                       <label className="text-sm font-medium">Cód. Serviço</label>
-                      <Input {...register("code")} placeholder="Ex: SERV-01" className="bg-white" />
+                      <Input {...register("code")} value={watch("code") || ""} placeholder="Ex: SERV-01" className="bg-white" />
                     </div>
                     <div className="col-span-3 space-y-2">
                       <label className="text-sm font-medium">Nome / Descrição da Composição *</label>
-                      <Input {...register("description", { required: true })} placeholder="Ex: Alvenaria de elevação 1m²" className="bg-white" />
+                      <Input {...register("description", { required: true })} value={watch("description") || ""} placeholder="Ex: Alvenaria de elevação 1m²" className="bg-white" />
                       {errors.description && <span className="text-xs text-red-500">Obrigatório</span>}
                     </div>
                     <div className="col-span-1 space-y-2">
                       <label className="text-sm font-medium text-center block">Unidade *</label>
-                      <Input {...register("unit", { required: true })} placeholder="m²" className="bg-white text-center font-semibold" />
+                      <Input {...register("unit", { required: true })} value={watch("unit") || ""} placeholder="m²" className="bg-white text-center font-semibold" />
                     </div>
                   </div>
 

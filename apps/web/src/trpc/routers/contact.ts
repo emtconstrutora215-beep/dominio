@@ -121,41 +121,64 @@ export const contactRouter = router({
       if (input.alsoSupplier && !rolesToSave.includes('SUPPLIER')) rolesToSave.push('SUPPLIER');
       if (input.alsoClient && !rolesToSave.includes('CLIENT')) rolesToSave.push('CLIENT');
       
-      return ctx.prisma.contact.create({
-        data: {
-          companyId: ctx.companyId!,
-          roles: rolesToSave,
-          personType: input.personType,
-          name: input.name,
-          tradeName: input.tradeName || null,
-          document: input.document || null,
-          stateRegistration: input.stateRegistration || null,
-          municipalRegistration: input.municipalRegistration || null,
-          birthDate: birthDateObj,
-          email: input.email || null,
-          phone: input.phone || null,
-          notes: input.notes || null,
-          cep: input.cep || null,
-          street: input.street || null,
-          number: input.number || null,
-          complement: input.complement || null,
-          neighborhood: input.neighborhood || null,
-          state: input.state || null,
-          city: input.city || null,
-          
-          gender: input.gender,
-          rg: input.rg || null,
-          rgUf: input.rgUf || null,
-          childrenCount: input.childrenCount,
-          motherName: input.motherName || null,
-          fatherName: input.fatherName || null,
-          workRegime: input.workRegime,
-          remunerationValue: input.remunerationValue ?? null,
-          jobRoleId: input.jobRoleId || null,
-          skillLevel: input.skillLevel,
-          admissionDate: admissionDateObj,
-          dismissalDate: dismissalDateObj,
+      const contactData = {
+        companyId: ctx.companyId!,
+        roles: rolesToSave as any,
+        personType: input.personType,
+        name: input.name,
+        tradeName: input.tradeName || null,
+        document: input.document || null,
+        stateRegistration: input.stateRegistration || null,
+        municipalRegistration: input.municipalRegistration || null,
+        birthDate: birthDateObj,
+        email: input.email || null,
+        phone: input.phone || null,
+        notes: input.notes || null,
+        cep: input.cep || null,
+        street: input.street || null,
+        number: input.number || null,
+        complement: input.complement || null,
+        neighborhood: input.neighborhood || null,
+        state: input.state || null,
+        city: input.city || null,
+        
+        gender: input.gender,
+        rg: input.rg || null,
+        rgUf: input.rgUf || null,
+        childrenCount: input.childrenCount,
+        motherName: input.motherName || null,
+        fatherName: input.fatherName || null,
+        workRegime: input.workRegime,
+        remunerationValue: input.remunerationValue ?? null,
+        jobRoleId: input.jobRoleId || null,
+        skillLevel: input.skillLevel,
+        admissionDate: admissionDateObj,
+        dismissalDate: dismissalDateObj,
+      };
+
+      if (input.document) {
+        const existing = await ctx.prisma.contact.findFirst({
+          where: { 
+            document: input.document,
+            companyId: ctx.companyId!
+          }
+        });
+
+        if (existing) {
+          // Se existir, atualiza mesclando as roles
+          const newRoles = [...new Set([...existing.roles, ...rolesToSave])];
+          return ctx.prisma.contact.update({
+            where: { id: existing.id },
+            data: {
+              ...contactData,
+              roles: newRoles as any
+            }
+          });
         }
+      }
+
+      return ctx.prisma.contact.create({
+        data: contactData
       });
     })
 });

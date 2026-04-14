@@ -64,7 +64,26 @@ export default function ClientesPage() {
   });
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<ContactFormData>({
-    defaultValues: { personType: 'LEGAL' }
+    defaultValues: {
+      personType: 'LEGAL',
+      name: "",
+      tradeName: "",
+      document: "",
+      stateRegistration: "",
+      municipalRegistration: "",
+      birthDate: "",
+      email: "",
+      phone: "",
+      notes: "",
+      cep: "",
+      street: "",
+      number: "",
+      complement: "",
+      neighborhood: "",
+      state: "",
+      city: "",
+      alsoSupplier: false,
+    }
   });
 
   const currentType = watch("personType");
@@ -159,24 +178,24 @@ export default function ClientesPage() {
                     <>
                       <div className="space-y-2 md:col-span-2">
                         <label className="text-sm font-medium">Razão Social *</label>
-                        <Input {...register("name", { required: true })} placeholder="Razão social oficial" />
+                        <Input {...register("name", { required: true })} value={watch("name") || ""} placeholder="Razão social oficial" />
                         {errors.name && <span className="text-xs text-red-500">Obrigatório</span>}
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Nome Fantasia</label>
-                        <Input {...register("tradeName")} placeholder="Apenas para referência" />
+                        <Input {...register("tradeName")} value={watch("tradeName") || ""} placeholder="Apenas para referência" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">CNPJ</label>
-                        <Input {...register("document")} placeholder="00.000.000/0001-00" />
+                        <Input {...register("document")} value={watch("document") || ""} placeholder="00.000.000/0001-00" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Inscrição Estadual</label>
-                        <Input {...register("stateRegistration")} placeholder="Opcional" />
+                        <Input {...register("stateRegistration")} value={watch("stateRegistration") || ""} placeholder="Opcional" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Inscrição Municipal</label>
-                        <Input {...register("municipalRegistration")} placeholder="Opcional" />
+                        <Input {...register("municipalRegistration")} value={watch("municipalRegistration") || ""} placeholder="Opcional" />
                       </div>
                     </>
                   ) : (
@@ -188,22 +207,22 @@ export default function ClientesPage() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">CPF</label>
-                        <Input {...register("document")} placeholder="000.000.000-00" />
+                        <Input {...register("document")} value={watch("document") || ""} placeholder="000.000.000-00" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Data de Nascimento</label>
-                        <Input type="date" {...register("birthDate")} />
+                        <Input type="date" {...register("birthDate")} value={watch("birthDate") || ""} />
                       </div>
                     </>
                   )}
                   
                   <div className="space-y-2">
                     <label className="text-sm font-medium">E-mail</label>
-                    <Input type="email" {...register("email")} placeholder="contato@dominio.com" />
+                    <Input type="email" {...register("email")} value={watch("email") || ""} placeholder="contato@dominio.com" />
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Telefone com DDD</label>
-                    <Input {...register("phone")} placeholder="(11) 90000-0000" />
+                    <Input {...register("phone")} value={watch("phone") || ""} placeholder="(11) 90000-0000" />
                   </div>
                 </div>
 
@@ -214,33 +233,33 @@ export default function ClientesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">CEP</label>
-                      <Input {...register("cep")} placeholder="00000-000" onBlur={handleCepBlur} />
+                      <Input {...register("cep")} value={watch("cep") || ""} placeholder="00000-000" onBlur={handleCepBlur} />
                     </div>
                     <div className="space-y-2 md:col-span-4">
                       <label className="text-xs font-medium text-slate-500">Rua / Logradouro</label>
-                      <Input {...register("street")} placeholder="Endereço principal..." />
+                      <Input {...register("street")} value={watch("street") || ""} placeholder="Endereço principal..." />
                     </div>
                     
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">Número</label>
-                      <Input id="number-input" {...register("number")} placeholder="Ex: 1024" />
+                      <Input id="number-input" {...register("number")} value={watch("number") || ""} placeholder="Ex: 1024" />
                     </div>
                     <div className="space-y-2 md:col-span-4">
                       <label className="text-xs font-medium text-slate-500">Complemento</label>
-                      <Input {...register("complement")} placeholder="Sala, bloco, andar..." />
+                      <Input {...register("complement")} value={watch("complement") || ""} placeholder="Sala, bloco, andar..." />
                     </div>
 
                     <div className="space-y-2 md:col-span-2">
                       <label className="text-xs font-medium text-slate-500">Bairro</label>
-                      <Input {...register("neighborhood")} placeholder="Bairro" />
+                      <Input {...register("neighborhood")} value={watch("neighborhood") || ""} placeholder="Bairro" />
                     </div>
                     <div className="space-y-2 md:col-span-3">
                       <label className="text-xs font-medium text-slate-500">Cidade</label>
-                      <Input {...register("city")} placeholder="Belo Horizonte" />
+                      <Input {...register("city")} value={watch("city") || ""} placeholder="Belo Horizonte" />
                     </div>
                     <div className="space-y-2 md:col-span-1">
                       <label className="text-xs font-medium text-slate-500">UF</label>
-                      <Input {...register("state")} placeholder="MG" />
+                      <Input {...register("state")} value={watch("state") || ""} placeholder="MG" />
                     </div>
                   </div>
                 </div>

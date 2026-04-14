@@ -67,6 +67,56 @@ export const projectsRouter = router({
       };
     }),
   
+  listInfinite: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(50).default(15),
+      cursor: z.string().nullish(), // id do projeto para cursor
+      search: z.string().optional(),
+      status: z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional()
+    }))
+    .query(async ({ ctx, input }) => {
+      const { limit, cursor, search } = input;
+      
+      const whereFilters: any = {
+        companyId: ctx.companyId,
+      };
+
+      if (input.status) {
+        whereFilters.status = input.status;
+      }
+
+      if (search && search.trim().length > 0) {
+        whereFilters.OR = [
+          { name: { contains: search, mode: 'insensitive' } },
+          { code: { contains: search, mode: 'insensitive' } },
+          { client: { name: { contains: search, mode: 'insensitive' } } }
+        ];
+      }
+
+      const items = await ctx.prisma.project.findMany({
+        take: limit + 1,
+        where: whereFilters,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          client: true,
+          budget: true,
+          users: { select: { id: true, name: true, email: true } }
+        }
+      });
+
+      let nextCursor: typeof cursor | undefined = undefined;
+      if (items.length > limit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem!.id;
+      }
+
+      return {
+        items,
+        nextCursor,
+      };
+    }),
+  
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
@@ -155,7 +205,7 @@ export const projectsRouter = router({
       clientId: z.string().optional().transform(v => v === "" ? undefined : v),
       
       address: z.string().optional(),
-      budget: z.number().optional(),
+      budget: z.number().optional().nullable(),
 
       totalArea: z.number().optional().nullable(),
       areaUnit: z.string().optional(),
@@ -203,36 +253,64 @@ export const projectsRouter = router({
 
       showInFinancial: z.boolean().default(true),
       showInInvoicing: z.boolean().default(true),
-      showInPurchasing: z.boolean().default(true)
+      showInPurchasing: z.boolean().default(true),
+      proposalStatus: z.enum(['UNDER_ELABORATION', 'SOLD', 'DISCONTINUED']).default('UNDER_ELABORATION'),
+      totalCost: z.number().default(0)
     }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         let invoicingContactId: string | null = null;
 
-        // Se veio bloco de faturamento aninhado, cria primeiro o Contato PIS/COFINS
+        // Se veio bloco de faturamento aninhado, cria ou atualiza o Contato
         if (input.invoicingContact) {
           const inv = input.invoicingContact;
-          const newContact = await tx.contact.create({
-            data: {
-              companyId: ctx.companyId,
-              roles: [], // Podíamos setar regras de billing
-              personType: inv.personType,
-              name: inv.name,
-              document: inv.document,
-              stateRegistration: inv.stateRegistration,
-              municipalRegistration: inv.municipalRegistration,
-              email: inv.email,
-              phone: inv.phone,
-              cep: inv.cep,
-              street: inv.street,
-              number: inv.number,
-              complement: inv.complement,
-              neighborhood: inv.neighborhood,
-              city: inv.city,
-              state: inv.state
+          
+          const contactData = {
+            companyId: ctx.companyId,
+            personType: inv.personType,
+            name: inv.name,
+            document: inv.document || null,
+            stateRegistration: inv.stateRegistration || null,
+            municipalRegistration: inv.municipalRegistration || null,
+            email: inv.email || null,
+            phone: inv.phone || null,
+            cep: inv.cep || null,
+            street: inv.street || null,
+            number: inv.number || null,
+            complement: inv.complement || null,
+            neighborhood: inv.neighborhood || null,
+            city: inv.city || null,
+            state: inv.state || null
+          };
+
+          // Tenta encontrar por documento e empresa para evitar erro de unique constraint
+          if (inv.document) {
+            const existing = await tx.contact.findFirst({
+              where: { 
+                document: inv.document,
+                companyId: ctx.companyId
+              }
+            });
+
+            if (existing) {
+              const updated = await tx.contact.update({
+                where: { id: existing.id },
+                data: contactData
+              });
+              invoicingContactId = updated.id;
+            } else {
+              const created = await tx.contact.create({
+                data: contactData
+              });
+              invoicingContactId = created.id;
             }
-          });
-          invoicingContactId = newContact.id;
+          } else {
+            // Sem documento, cria sempre um novo
+            const created = await tx.contact.create({
+              data: contactData
+            });
+            invoicingContactId = created.id;
+          }
         }
 
         // Criar Project principal
@@ -269,6 +347,8 @@ export const projectsRouter = router({
             showInFinancial: input.showInFinancial,
             showInInvoicing: input.showInInvoicing,
             showInPurchasing: input.showInPurchasing,
+            proposalStatus: input.proposalStatus,
+            totalCost: input.totalCost,
 
             // Relacionamento com Contatos da Obra
             projectContacts: input.projectContacts?.length ? {
