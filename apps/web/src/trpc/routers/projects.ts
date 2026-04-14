@@ -188,6 +188,8 @@ export const projectsRouter = router({
         showInFinancial: true,
         showInInvoicing: true,
         showInPurchasing: true,
+        status: true,
+        number: true,
         paymentResponsibility: true,
         defaultBankAccountId: true
       }
