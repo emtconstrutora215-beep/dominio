@@ -77,15 +77,15 @@ import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   supplierId: z.string().min(1, "Selecione um fornecedor"),
-  freight: z.number().min(0).default(0),
-  otherExpenses: z.number().min(0).default(0),
-  taxes: z.number().min(0).default(0),
-  discounts: z.number().min(0).default(0),
-  deliveryDays: z.number().min(0).default(0),
-  paymentTerms: z.string().min(1, "Informe a condição de pagamento").default("À Vista"),
-  installments: z.number().min(1).default(1),
+  freight: z.coerce.number().min(0),
+  otherExpenses: z.coerce.number().min(0),
+  taxes: z.coerce.number().min(0),
+  discounts: z.coerce.number().min(0),
+  deliveryDays: z.coerce.number().min(0),
+  paymentTerms: z.string().min(1, "Informe a condição de pagamento"),
+  installments: z.coerce.number().min(1),
   firstDueDate: z.string().min(1, "Selecione a data de vencimento"),
-  category: z.string().default("Materiais"),
+  category: z.string(),
   orderNumber: z.string().optional(),
   approverId: z.string().optional(),
 });
