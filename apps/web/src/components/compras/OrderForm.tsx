@@ -121,7 +121,7 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
     suppliersData?.items || [], 
   [suppliersData]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       supplierId: initialData?.quote?.suppliers?.[0]?.id || "",
