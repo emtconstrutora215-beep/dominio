@@ -121,8 +121,8 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
     suppliersData?.items || [], 
   [suppliersData]);
 
-  const form = useForm({
-    resolver: zodResolver(formSchema),
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema) as any,
     defaultValues: {
       supplierId: initialData?.quote?.suppliers?.[0]?.id || "",
       freight: initialData?.quote?.suppliers?.[0]?.freight || 0,
