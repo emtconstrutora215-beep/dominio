@@ -371,7 +371,7 @@ export function BudgetSpreadsheet({
                 
                 <div className="flex flex-col">
                     {/* Draft Row for Sub-Etapa (inside Stage) */}
-                    {addingItemTo?.stageId === stage.id && !addingItemTo.parentId && (
+                    {addingItemTo?.stageId === stage.id && !addingItemTo?.parentId && (
                         <div className="flex items-center h-12 bg-slate-50/80 border-b border-slate-200 animate-in fade-in slide-in-from-top-1 duration-200">
                             <div className="w-[80px] shrink-0 px-4 flex items-center justify-center">
                                 <Box className="w-3.5 h-3.5 text-blue-400" />
