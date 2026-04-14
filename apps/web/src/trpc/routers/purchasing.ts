@@ -215,7 +215,7 @@ export const purchasingRouter = router({
             }
           }
         },
-        approver: { select: { name: true, image: true } },
+        approver: { select: { name: true } },
         financialEntries: true,
         goodsReceipts: {
           include: { items: true }
@@ -247,7 +247,7 @@ export const purchasingRouter = router({
               }
             }
           },
-          approver: { select: { name: true, image: true } },
+          approver: { select: { name: true } },
           financialEntries: true,
           goodsReceipts: {
             include: { items: true }
