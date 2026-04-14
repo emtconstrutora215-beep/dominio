@@ -36,8 +36,8 @@ export default function PurchaseOrdersPage() {
   const { data: orders, isLoading } = trpc.purchasing.getOrders.useQuery();
 
   // Calculate metrics
-  const totalValue = orders?.reduce((acc, order) => {
-    const winner = order.quote.suppliers[0];
+  const totalValue = orders?.reduce((acc, order: any) => {
+    const winner = order.quote?.suppliers?.[0];
     return acc + (winner ? (winner.totalPrice + winner.freight) : 0);
   }, 0) || 0;
 
@@ -206,7 +206,7 @@ export default function PurchaseOrdersPage() {
               </TableRow>
             ) : (
               orders?.map((order: any) => {
-                const winner = order.quote.suppliers[0];
+                const winner = order.quote?.suppliers?.[0];
                 const total = winner ? (winner.totalPrice + winner.freight) : 0;
                 
                 return (
@@ -248,10 +248,10 @@ export default function PurchaseOrdersPage() {
                         </div>
                         <div className="flex flex-col">
                            <span className="text-xs font-black text-slate-700 uppercase tracking-tight">
-                             {order.quote.request.project?.name || "SEDE / ADMINISTRATIVO"}
+                             {order.quote?.request?.project?.name || "SEDE / ADMINISTRATIVO"}
                            </span>
                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[150px]">
-                              {order.quote.request.approver?.name || "Responsável não definido"}
+                              {order.quote?.request?.approver?.name || "Responsável não definido"}
                            </span>
                         </div>
                       </div>
