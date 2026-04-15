@@ -39,6 +39,10 @@ enum ProposalStatus {
 }
 
 enum OrderStatus {
+  OPEN
+  NEGOTIATING
+  PENDING_APPROVAL
+  REJECTED
   ISSUED
   AWAITING_RECEIPT // Adicionado para fluxo de estoque
   PARTIALLY_RECEIVED // Adicionado para fluxo de estoque
@@ -385,18 +389,27 @@ model QuoteSupplier {
 }
 
 model PurchaseOrder {
-  id         String      @id @default(uuid())
-  number     String?     @unique
-  quoteId    String      @unique
-  approverId String?
-  status     OrderStatus @default(AWAITING_RECEIPT)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id                String      @id @default(uuid())
+  number            String?     @unique
+  quoteId           String      @unique
+  approverId        String?
+  status            OrderStatus @default(AWAITING_RECEIPT)
+  billingType       BillingType @default(COMPANY)
+  billingManualName String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
   quote            Quote            @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   approver         User?            @relation("OrderApproverRelation", fields: [approverId], references: [id], onDelete: SetNull)
   financialEntries FinancialEntry[]
   goodsReceipts    GoodsReceipt[]
+}
+
+enum BillingType {
+  COMPANY
+  CLIENT
+  DIRECT
+  MANUAL
 }
 
 model FinancialEntry {

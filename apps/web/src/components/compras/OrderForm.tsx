@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, Fragment } from "react";
+import React, { useState, useMemo, Fragment } from "react";
 import { trpc } from "@/trpc/client";
 import { format } from "date-fns";
 import { useRouter } from "next/navigation";
@@ -44,36 +44,29 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  ArrowLeft,
   Plus,
   Trash2,
-  ShoppingCart,
-  BadgeDollarSign,
-  Loader2,
-  PackageSearch,
-  Lock,
   Save,
-  Calendar,
-  User,
-  CheckCircle2,
-  MoreVertical,
   ChevronUp,
   Building2,
   FileText,
   Truck,
   CreditCard,
-  Phone,
   Share2,
   Printer,
   Search,
   PlusCircle,
-  Briefcase
+  Briefcase,
+  DollarSign,
+  ArrowLeft,
+  MoreVertical,
+  ChevronDown,
+  MessageSquare
 } from "lucide-react";
-import Link from "next/link";
 import { AddBudgetItemDialog } from "@/components/orcamentos/AddBudgetItemDialog";
 import { ProjectStageSelectorDialog } from "./ProjectStageSelectorDialog";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   supplierId: z.string().min(1, "Selecione um fornecedor"),
@@ -87,7 +80,10 @@ const formSchema = z.object({
   firstDueDate: z.string().min(1, "Selecione a data de vencimento"),
   category: z.string(),
   orderNumber: z.string().optional(),
+  status: z.string().default('OPEN'),
   approverId: z.string().optional(),
+  billingType: z.enum(['COMPANY', 'CLIENT', 'DIRECT', 'MANUAL']).default('COMPANY'),
+  billingManualName: z.string().optional(),
 });
 
 type OrderItem = {
@@ -112,14 +108,21 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
   const [isProjectSelectorOpen, setIsProjectSelectorOpen] = useState(false);
   const [selectedContext, setSelectedContext] = useState<{ projectId: string | null, stageId: string | null } | null>(null);
   const [activeTab, setActiveTab] = useState("itens");
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({ "HEADQUARTERS-NONE": true });
+
+  const { data: nextNumberData } = trpc.purchasing.getNextOrderNumber.useQuery(undefined, {
+    enabled: mode === "create" && !initialData?.number,
+  });
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const { data: projects = [] } = trpc.projects.getAll.useQuery();
   const { data: users } = trpc.company.getUsers.useQuery();
   const { data: suppliersData } = trpc.contact.list.useQuery({ type: 'SUPPLIER', perPage: 100 });
   
-  const suppliers = useMemo(() => 
-    suppliersData?.items || [], 
-  [suppliersData]);
+  const suppliers = useMemo(() => suppliersData?.items || [], [suppliersData]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema) as any,
@@ -137,9 +140,19 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
         : new Date().toISOString().split('T')[0],
       category: initialData?.financialEntries?.[0]?.category || "Materiais",
       orderNumber: initialData?.number || "",
+      status: initialData?.status || "OPEN",
       approverId: initialData?.approverId || "",
+      billingType: initialData?.billingType || "COMPANY",
+      billingManualName: initialData?.billingManualName || "",
     },
   });
+
+  // Auto-fill order number on create
+  React.useEffect(() => {
+    if (mode === "create" && nextNumberData && !form.getValues("orderNumber")) {
+      form.setValue("orderNumber", nextNumberData);
+    }
+  }, [nextNumberData, mode, form]);
 
   const createOrder = trpc.purchasing.createDirectOrder.useMutation({
     onSuccess: () => {
@@ -164,19 +177,11 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
       toast.error("Adicione pelo menos um item à ordem");
       return;
     }
-
     const selectedSupplier = suppliers.find(s => s.id === values.supplierId);
-
-    const payload = {
-      ...values,
-      items,
-      supplierName: selectedSupplier?.name || "Fornecedor Direto",
-    };
-
     if (mode === "create") {
-      createOrder.mutate(payload);
+      createOrder.mutate({ ...values, items, supplierName: selectedSupplier?.name || "Fornecedor Direto" });
     } else {
-      updateOrder.mutate({ ...payload, orderId: initialData.id });
+      updateOrder.mutate({ ...values, items, supplierName: selectedSupplier?.name || "Fornecedor Direto", orderId: initialData.id });
     }
   };
 
@@ -201,563 +206,436 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
     return groups;
   }, [items]);
 
-  const isPending = createOrder.isPending || updateOrder.isPending;
-
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-[#f8fafc] font-sans antialiased text-slate-900 overflow-hidden">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
-          {/* 1. TOP HEADER - PREMIUM ERP STYLE */}
+          
+          {/* 1. TOP HEADER - INSTITUTIONAL PREMIUM */}
           <div className="bg-white border-b border-slate-200 flex-none px-6 py-4 shadow-sm z-40">
-            <div className="max-w-[1700px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="max-w-[1700px] mx-auto flex items-center justify-between">
               <div className="flex items-center gap-6">
                 <div className="pr-6 border-r border-slate-100">
                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-0.5">COMPRAS</span>
-                   <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none flex items-center gap-2">
-                     Ordem de Compra
-                   </h1>
+                   <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none">Ordem de Compra</h1>
                 </div>
 
-                <div className="flex items-center gap-8">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">VALOR TOTAL</span>
-                    <div className="flex items-baseline gap-1">
-                       <span className="text-xs font-black text-slate-400 uppercase leading-none">R$</span>
-                       <span className="text-xl font-black text-slate-900 tracking-tighter leading-none tabular-nums">
-                        {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                       </span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">CRIAÇÃO</span>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-bold border-0 h-6 px-3 rounded text-xs">
-                       {mode === "create" ? format(new Date(), 'dd/MM/yyyy') : format(new Date(initialData?.createdAt), 'dd/MM/yyyy')}
-                    </Badge>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">CRIADO POR</span>
-                    <Badge variant="secondary" className="bg-blue-50 text-blue-600 font-bold border-0 h-6 px-3 rounded text-xs">
-                       Administrador
-                    </Badge>
-                  </div>
+                <div className="flex items-center gap-10">
+                  <HeaderMetric label="VALOR TOTAL" value={`R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} />
+                  <HeaderMetric label="CRIAÇÃO" value={mode === "create" ? format(new Date(), 'dd/MM/yyyy') : format(new Date(initialData?.createdAt), 'dd/MM/yyyy')} />
+                  <HeaderMetric label="CRIADO POR" value="Usuário Logado" />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button variant="outline" type="button" className="h-9 border-slate-200 bg-white font-bold text-slate-600 gap-2 hover:bg-slate-50">
-                   <BadgeDollarSign className="w-4 h-4 text-emerald-500" />
-                   $ Lançamento
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isPending || isBlocked} 
-                  className="h-9 bg-[#22c55e] hover:bg-[#16a34a] text-white font-black px-6 border-0 gap-2 shadow-sm active:scale-95 transition-all"
-                >
-                  {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Salvar
-                </Button>
-                <Link href="/dashboard/compras/ordens">
-                  <Button variant="outline" type="button" className="h-9 w-9 p-0 border-0 bg-orange-500 hover:bg-orange-600 text-white shadow-sm">
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
-                </Link>
+              <div className="flex items-center gap-3">
+                 <Button variant="outline" type="button" className="h-10 px-4 bg-white border-slate-200 text-slate-600 font-bold gap-2 hover:bg-slate-50 transition-all rounded-xl shadow-sm">
+                    <DollarSign className="w-4 h-4 text-slate-400" />
+                    $ Lançamento
+                 </Button>
+                 <Button type="submit" disabled={isBlocked} className="h-10 px-6 bg-[#22c55e] hover:bg-[#16a34a] text-white font-black gap-2 transition-all rounded-xl shadow-lg shadow-green-100 uppercase text-xs tracking-wider">
+                    <Save className="w-4 h-4" />
+                    Salvar
+                 </Button>
+                 <Button variant="outline" size="icon" type="button" className="h-10 w-10 bg-white border-slate-200 text-slate-600 rounded-xl">
+                    <MoreVertical className="w-4 h-4" />
+                 </Button>
+                 <Button 
+                   variant="ghost" 
+                   type="button" 
+                   onClick={() => router.back()}
+                   className="h-10 w-10 p-0 text-orange-500 hover:bg-orange-50 rounded-xl"
+                 >
+                    <ArrowLeft className="w-6 h-6" />
+                 </Button>
               </div>
             </div>
           </div>
 
-          {/* 2. SCROLLABLE CONTENT AREA */}
-          <div className="flex-1 overflow-y-auto overscroll-contain bg-[#f8fafc]">
-            {/* METADATA BAR (FIELDS BELOW HEADER) */}
-            <div className="bg-[#f8fafc] border-b border-slate-200 px-6 py-4">
-               <div className="max-w-[1700px] mx-auto flex flex-col lg:flex-row items-end gap-6">
-                  <div className="w-32">
-                    <FormField
-                      control={form.control}
-                      name="orderNumber"
-                      render={({ field }) => (
-                        <FormItem className="space-y-1">
-                          <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Número:</FormLabel>
-                          <FormControl>
-                            <Input className="h-9 bg-white border-slate-200 font-bold text-slate-700" {...field} placeholder="Automático" disabled={isBlocked} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="flex-1 min-w-[300px]">
-                    <FormField
+          {/* 2. METADATA BAR (QUICK INFO) */}
+          <div className="bg-[#fcfdff] border-b border-slate-100 px-6 py-4 flex-none z-30">
+             <div className="max-w-[1700px] mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-8 flex-1">
+                   <div className="w-[100px]">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 pl-1">Número:</span>
+                      <Input value={form.watch("orderNumber") || "Auto"} disabled className="h-10 bg-slate-50/50 border-slate-100 font-black text-slate-400 rounded-xl" />
+                   </div>
+                   
+                   <FormField
                       control={form.control}
                       name="supplierId"
                       render={({ field }) => (
-                        <FormItem className="space-y-1">
-                          <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1">
-                            Fornecedor: <span className="text-red-500">*</span>
-                          </FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value} disabled={isBlocked}>
+                        <FormItem className="w-[300px] space-y-1.5">
+                          <FormLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Fornecedor:</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isBlocked}>
                             <FormControl>
-                              <SelectTrigger className="h-9 bg-white border-slate-200 font-bold text-slate-700">
-                                <SelectValue placeholder="Selecione um fornecedor" />
+                              <SelectTrigger className="h-10 bg-white border-slate-200 font-bold text-slate-700 rounded-xl focus:ring-blue-500/20">
+                                <SelectValue placeholder="Selecione o fornecedor" />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
-                              {suppliers.map(s => (
-                                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                              ))}
+                            <SelectContent className="rounded-xl">
+                              {suppliers.map(s => <SelectItem key={s.id} value={s.id} className="font-bold">{s.name}</SelectItem>)}
                             </SelectContent>
                           </Select>
                         </FormItem>
                       )}
                     />
-                  </div>
 
-                  <div className="w-64">
-                     <FormField
+                   <FormField
                       control={form.control}
-                      name="approverId"
+                      name="status"
                       render={({ field }) => (
-                        <FormItem className="space-y-1">
-                          <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Aprovação:</FormLabel>
-                          <div className="flex gap-2">
-                             <Select onValueChange={field.onChange} value={field.value} disabled={isBlocked}>
-                                <FormControl>
-                                  <SelectTrigger className="h-9 bg-white border-slate-200 font-bold text-slate-700">
-                                    <SelectValue placeholder="Em aberto" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {users?.map(u => (
-                                    <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button variant="outline" size="icon" type="button" className="h-9 w-9 shrink-0 border-slate-200 bg-white">
-                                 <Phone className="w-4 h-4 text-blue-500" />
-                              </Button>
-                          </div>
+                        <FormItem className="w-[220px] space-y-1.5">
+                          <FormLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">Aprovação:</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isBlocked}>
+                            <FormControl>
+                              <SelectTrigger className="h-10 bg-white border-slate-200 font-bold text-slate-700 rounded-xl">
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="OPEN" className="font-bold">Em aberto</SelectItem>
+                              <SelectItem value="NEGOTIATING" className="font-bold">Negociando</SelectItem>
+                              <SelectItem value="PENDING_APPROVAL" className="font-bold">Aguardando aprovação</SelectItem>
+                              <SelectItem value="ISSUED" className="font-bold">Aprovado</SelectItem>
+                              <SelectItem value="REJECTED" className="font-bold">Negado</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </FormItem>
                       )}
                     />
-                  </div>
+                </div>
 
-                  <div className="flex items-center ml-auto gap-2 h-9">
-                     <Button variant="outline" size="icon" type="button" className="h-9 w-9 bg-white border-slate-200 text-green-600 hover:text-green-700">
-                        <Phone className="w-4 h-4" />
-                     </Button>
-                     <Button variant="outline" size="icon" type="button" className="h-9 w-9 bg-white border-slate-200 text-slate-600">
-                        <Share2 className="w-4 h-4" />
-                     </Button>
-                     <Button variant="outline" size="icon" type="button" className="h-9 w-9 bg-white border-slate-200 text-slate-600">
-                        <Printer className="w-4 h-4" />
-                     </Button>
-                  </div>
-               </div>
-            </div>
-
-            {/* 3. TABS NAVIGATION */}
-            <div className="px-6 bg-white border-b border-slate-200 z-30 overflow-x-auto">
-               <div className="max-w-[1700px] mx-auto flex items-center justify-between">
-                  <Tabs value={activeTab} onValueChange={setActiveTab} className="w-fit">
-                    <TabsList className="h-12 bg-transparent p-0 gap-8">
-                      <TabsTrigger value="itens" className="h-12 border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent rounded-none px-2 font-bold text-slate-500 data-[state=active]:text-[#3b82f6] transition-all uppercase tracking-widest text-[11px]">Itens</TabsTrigger>
-                      <TabsTrigger value="informações" className="h-12 border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent rounded-none px-2 font-bold text-slate-500 data-[state=active]:text-[#3b82f6] transition-all uppercase tracking-widest text-[11px]">Informações</TabsTrigger>
-                      <TabsTrigger value="resumo" className="h-12 border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent rounded-none px-2 font-bold text-slate-500 data-[state=active]:text-[#3b82f6] transition-all uppercase tracking-widest text-[11px]">Resumo da Compra</TabsTrigger>
-                      <TabsTrigger value="arquivos" className="h-12 border-b-2 border-transparent data-[state=active]:border-[#3b82f6] data-[state=active]:bg-transparent rounded-none px-2 font-bold text-slate-500 data-[state=active]:text-[#3b82f6] transition-all uppercase tracking-widest text-[11px]">Arquivos</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-
-                  {items.length > 0 && activeTab === "itens" && (
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        type="button"
-                        onClick={() => {
-                          setSelectedContext({ projectId: null, stageId: null });
-                          setIsAddItemDialogOpen(true);
-                        }}
-                        className="h-8 border-dashed border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-widest hover:border-blue-300 hover:text-blue-500"
-                      >
-                         <Plus className="w-3 h-3 mr-1" />
-                         + Empresa
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        type="button"
-                        onClick={() => setIsProjectSelectorOpen(true)}
-                        className="h-8 border-dashed border-slate-200 text-slate-400 font-bold uppercase text-[9px] tracking-widest hover:border-orange-300 hover:text-orange-500"
-                      >
-                         <Plus className="w-3 h-3 mr-1" />
-                         + Obra
-                      </Button>
-                    </div>
-                  )}
-               </div>
-            </div>
-
-            <div className="max-w-[1700px] mx-auto p-6">
-              <Tabs value={activeTab} className="w-full">
-                <TabsContent value="itens" className="mt-0 outline-none">
-                   {items.length === 0 ? (
-                      <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl py-32 flex flex-col items-center justify-center text-center shadow-inner">
-                         <p className="text-slate-400 font-bold text-xl mb-10 max-w-lg">
-                           Para começar a colocar itens deve ser preciso informar o centro de custos primeiro
-                         </p>
-                         <div className="flex flex-wrap justify-center gap-6">
-                            <Button 
-                              type="button" 
-                              onClick={() => setIsProjectSelectorOpen(true)}
-                              className="h-16 bg-[#bbf7d0] hover:bg-[#86efac] text-[#166534] font-black px-10 rounded-2xl gap-3 shadow-lg shadow-green-200/50 transition-all active:scale-95 text-lg"
-                            >
-                               <PlusCircle className="w-6 h-6" />
-                               + Obra
-                            </Button>
-                            <Button 
-                              type="button"
-                              onClick={() => {
-                                setSelectedContext({ projectId: null, stageId: null });
-                                setIsAddItemDialogOpen(true);
-                              }}
-                              className="h-16 bg-[#bbf7d0] hover:bg-[#86efac] text-[#166534] font-black px-10 rounded-2xl gap-3 shadow-lg shadow-green-200/50 transition-all active:scale-95 text-lg"
-                            >
-                               <Briefcase className="w-6 h-6" />
-                               + Empresa
-                            </Button>
-                         </div>
-                         <div className="mt-16 flex flex-col items-center gap-6">
-                            <span className="text-slate-300 font-bold uppercase text-[10px] tracking-[0.3em]">ou</span>
-                            <Button variant="outline" type="button" className="h-14 border-2 border-slate-100 bg-white text-slate-400 font-black px-8 rounded-2xl gap-3 hover:bg-slate-50 hover:border-slate-200 transition-colors">
-                               <Search className="w-5 h-5" />
-                               Buscar solicitação
-                            </Button>
-                         </div>
-                      </div>
-                   ) : (
-                      <Card className="border-slate-200 shadow-sm overflow-hidden rounded-2xl bg-white mb-6">
-                        <CardContent className="p-0">
-                          <Table>
-                            <TableHeader className="bg-slate-50/50">
-                              <TableRow className="hover:bg-transparent border-b border-slate-200">
-                                <TableHead className="w-[50px] text-center font-black text-slate-400 text-[10px] uppercase tracking-wider pl-4">#</TableHead>
-                                <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-wider">Descrição do Material / Serviço</TableHead>
-                                <TableHead className="w-[100px] text-center font-black text-slate-500 text-[10px] uppercase tracking-wider">Unid.</TableHead>
-                                <TableHead className="w-[120px] text-center font-black text-slate-500 text-[10px] uppercase tracking-wider">Qtd.</TableHead>
-                                <TableHead className="w-[160px] text-right font-black text-slate-500 text-[10px] uppercase tracking-wider">Preço Unit.</TableHead>
-                                <TableHead className="w-[160px] text-right font-black text-slate-500 text-[10px] uppercase tracking-wider pr-4">Total</TableHead>
-                                <TableHead className="w-[60px]"></TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {Object.entries(groupedItems).map(([groupKey, groupItems]) => {
-                                const [projId, stageId] = groupKey.split('-');
-                                const project = projects?.find(p => p.id === projId);
-                                const stage = project?.stages.find(s => s.id === stageId);
-                                
-                                return (
-                                  <Fragment key={groupKey}>
-                                    <TableRow className="bg-slate-50/60 hover:bg-slate-100/80 border-y border-slate-200 select-none">
-                                      <TableCell colSpan={7} className="py-2.5 px-5">
-                                        <div className="flex items-center group">
-                                          <div className="flex items-center gap-4 flex-1">
-                                            <div className="flex items-center gap-2.5">
-                                              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                                                <Building2 className="w-4 h-4 text-[#F07B2B]" />
-                                              </div>
-                                              <span className="text-xs font-black text-slate-700 uppercase tracking-tight">
-                                                {project?.name || "SEDE / ADMINISTRATIVO"}
-                                              </span>
-                                            </div>
-                                            {stage && (
-                                              <div className="flex items-center gap-2.5 border-l border-slate-300/50 pl-4">
-                                                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-                                                  <FileText className="w-4 h-4 text-blue-500" />
-                                                </div>
-                                                <span className="text-xs font-bold text-slate-500 uppercase">
-                                                  {stage.name}
-                                                </span>
-                                              </div>
-                                            )}
-                                          </div>
-                                          
-                                          <Button 
-                                            variant="ghost" 
-                                            type="button"
-                                            onClick={() => {
-                                              setSelectedContext({ projectId: projId === "HEADQUARTERS" ? null : projId, stageId: stageId === "NONE" ? null : stageId });
-                                              setIsAddItemDialogOpen(true);
-                                            }}
-                                            className="opacity-0 group-hover:opacity-100 h-8 gap-2 text-blue-600 font-bold hover:bg-blue-50"
-                                          >
-                                            <Plus className="w-3 h-3" />
-                                            Adicionar Item
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                    {groupItems.map((item, idx) => {
-                                      const globalIndex = items.indexOf(item);
-                                      return (
-                                        <TableRow key={globalIndex} className="hover:bg-blue-50/20 border-b border-slate-50 last:border-0 h-[72px] transition-colors">
-                                          <TableCell className="text-center font-bold text-slate-300 text-xs pl-4">{globalIndex + 1}</TableCell>
-                                          <TableCell>
-                                             <div className="space-y-1.5">
-                                                <Input 
-                                                  className="h-8 border-transparent hover:border-slate-200 focus:border-blue-500 bg-transparent text-sm font-semibold p-1 transition-all"
-                                                  value={item.description}
-                                                  onChange={e => !isBlocked && setItems(items.map((it, i) => i === globalIndex ? {...it, description: e.target.value} : it))}
-                                                  disabled={isBlocked}
-                                                />
-                                                <div className="flex gap-2">
-                                                  <Badge variant="outline" className="text-[9px] font-bold uppercase bg-slate-100 border-slate-200 text-slate-400">
-                                                    {project?.name || "Sede"}
-                                                  </Badge>
-                                                  {stage && (
-                                                    <Badge variant="outline" className="text-[9px] font-bold uppercase bg-blue-50 border-blue-100 text-blue-400">
-                                                      {stage.name}
-                                                    </Badge>
-                                                  )}
-                                                </div>
-                                             </div>
-                                          </TableCell>
-                                          <TableCell className="text-center">
-                                            <Input 
-                                              className="h-8 w-16 mx-auto text-center font-bold border-transparent hover:border-slate-200 bg-transparent"
-                                              value={item.unit}
-                                              onChange={e => !isBlocked && setItems(items.map((it, i) => i === globalIndex ? {...it, unit: e.target.value} : it))}
-                                              disabled={isBlocked}
-                                            />
-                                          </TableCell>
-                                          <TableCell className="text-center">
-                                            <Input 
-                                              type="number"
-                                              className="h-8 w-20 mx-auto text-center font-bold border-transparent hover:border-slate-200 bg-transparent"
-                                              value={item.quantity}
-                                              onChange={e => !isBlocked && setItems(items.map((it, i) => i === globalIndex ? {...it, quantity: parseFloat(e.target.value)} : it))}
-                                              disabled={isBlocked}
-                                            />
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            <Input 
-                                              type="number"
-                                              className="h-8 w-28 ml-auto text-right font-bold border-transparent hover:border-slate-200 bg-transparent"
-                                              value={item.unitPrice}
-                                              onChange={e => !isBlocked && setItems(items.map((it, i) => i === globalIndex ? {...it, unitPrice: parseFloat(e.target.value)} : it))}
-                                              disabled={isBlocked}
-                                            />
-                                          </TableCell>
-                                          <TableCell className="text-right font-black text-slate-800 pr-4">
-                                            R$ {(item.quantity * item.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                                          </TableCell>
-                                          <TableCell>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="icon" 
-                                              className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50"
-                                              onClick={() => !isBlocked && setItems(items.filter((_, i) => i !== globalIndex))}
-                                              disabled={isBlocked}
-                                            >
-                                              <Trash2 className="w-4 h-4" />
-                                            </Button>
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                  </Fragment>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </CardContent>
-                      </Card>
-                   )}
-                </TabsContent>
-
-                <TabsContent value="informações" className="mt-0 outline-none">
-                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
-                        <div className="p-6">
-                           <div className="flex items-center gap-3 border-b border-slate-50 pb-4 mb-6">
-                              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
-                                 <Truck className="w-5 h-5 text-orange-500" />
-                              </div>
-                              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Logística & Entrega</h3>
-                           </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                             <FormField
-                               control={form.control}
-                               name="deliveryDays"
-                               render={({ field }) => (
-                                 <FormItem className="space-y-1.5">
-                                   <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Prazo de Entrega (dias):</FormLabel>
-                                   <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} className="h-11 bg-slate-50 border-slate-200 font-bold" disabled={isBlocked} />
-                                 </FormItem>
-                               )}
-                             />
-                           </div>
-                        </div>
-                      </Card>
-
-                      <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
-                        <div className="p-6">
-                           <div className="flex items-center gap-3 border-b border-slate-50 pb-4 mb-6">
-                              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                                 <CreditCard className="w-5 h-5 text-emerald-500" />
-                              </div>
-                              <h3 className="text-base font-black text-slate-800 uppercase tracking-wider">Dados Financeiros</h3>
-                           </div>
-                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                              <FormField
-                               control={form.control}
-                               name="paymentTerms"
-                               render={({ field }) => (
-                                 <FormItem className="space-y-1.5">
-                                   <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Condição de Pagamento:</FormLabel>
-                                   <Input {...field} className="h-11 bg-slate-50 border-slate-200 font-bold" placeholder="Ex: 30/60 dias" disabled={isBlocked} />
-                                 </FormItem>
-                               )}
-                             />
-                             <div className="grid grid-cols-2 gap-4">
-                               <FormField
-                                 control={form.control}
-                                 name="installments"
-                                 render={({ field }) => (
-                                   <FormItem className="space-y-1.5">
-                                     <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Parcelas:</FormLabel>
-                                     <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} className="h-11 bg-slate-50 border-slate-200 font-bold" disabled={isBlocked} />
-                                   </FormItem>
-                                 )}
-                               />
-                               <FormField
-                                 control={form.control}
-                                 name="firstDueDate"
-                                 render={({ field }) => (
-                                   <FormItem className="space-y-1.5">
-                                     <FormLabel className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">1º Vencimento:</FormLabel>
-                                     <Input type="date" {...field} className="h-11 bg-slate-50 border-slate-200 font-bold" disabled={isBlocked} />
-                                   </FormItem>
-                                 )}
-                               />
-                             </div>
-                           </div>
-                        </div>
-                      </Card>
-                   </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div> {/* END OF SCROLLABLE AREA */}
-
-          {/* 3. ERP BOTTOM ACTION BAR (HORIZONTAL SUMMARY) */}
-          <div className="bg-white border-t border-slate-200 px-6 py-4 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] flex-none z-50">
-             <div className="max-w-[1700px] mx-auto flex flex-col md:flex-row items-center justify-between gap-10">
-                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 flex-1 w-full min-w-0">
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 leading-none select-none">(+) FRETE</span>
-                      <div className="flex items-center gap-2.5 px-3 h-11 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                         <span className="text-[10px] font-bold text-slate-400">R$</span>
-                         <input 
-                           type="number"
-                           step="0.01"
-                           className="bg-transparent border-0 outline-none w-full text-sm font-black text-slate-700 placeholder:text-slate-300"
-                           {...form.register("freight", { valueAsNumber: true })}
-                           disabled={isBlocked}
-                           placeholder="0,00"
-                         />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] font-black text-slate-400 uppercase leading-none tracking-widest pl-1 select-none">(+) OUTRAS</span>
-                      <div className="flex items-center gap-2.5 px-3 h-11 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                         <span className="text-[10px] font-bold text-slate-400">R$</span>
-                         <input 
-                           type="number"
-                           step="0.01"
-                           className="bg-transparent border-0 outline-none w-full text-sm font-black text-slate-700 placeholder:text-slate-300"
-                           {...form.register("otherExpenses", { valueAsNumber: true })}
-                           disabled={isBlocked}
-                           placeholder="0,00"
-                         />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] font-black text-slate-400 uppercase leading-none tracking-widest pl-1 select-none">(+) IMPOSTO</span>
-                      <div className="flex items-center gap-2.5 px-3 h-11 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-50 transition-all">
-                         <span className="text-[10px] font-bold text-slate-400">R$</span>
-                         <input 
-                           type="number"
-                           step="0.01"
-                           className="bg-transparent border-0 outline-none w-full text-sm font-black text-slate-700 placeholder:text-slate-300"
-                           {...form.register("taxes", { valueAsNumber: true })}
-                           disabled={isBlocked}
-                           placeholder="0,00"
-                         />
-                      </div>
-                    </div>
-
-                    <div className="space-y-1 min-w-0">
-                      <span className="text-[10px] font-black text-slate-400 uppercase leading-none tracking-widest pl-1 select-none">(-) DESC.</span>
-                      <div className="flex items-center gap-2.5 px-3 h-11 bg-slate-50 rounded-xl border border-slate-200 focus-within:border-red-400 focus-within:ring-2 focus-within:ring-red-50 transition-all">
-                         <span className="text-[10px] font-bold text-slate-400">R$</span>
-                         <input 
-                           type="number"
-                           step="0.01"
-                           className="bg-transparent border-0 outline-none w-full text-sm font-black text-red-600 placeholder:text-red-200"
-                           {...form.register("discounts", { valueAsNumber: true })}
-                           disabled={isBlocked}
-                           placeholder="0,00"
-                         />
-                      </div>
-                    </div>
-                 </div>
-
-                 <div className="w-full md:w-auto flex flex-col items-end border-l-0 md:border-l border-slate-100 md:pl-10 min-w-max">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 leading-none select-none">TOTAL A PAGAR:</span>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-sm font-black text-slate-400">R$</span>
-                      <span className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums drop-shadow-sm">
-                       {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                 </div>
+                <div className="flex items-center gap-2 pl-6 border-l border-slate-100 ml-6">
+                   <ToolButton icon={<MessageSquare className="w-4 h-4" />} color="text-emerald-500 hover:bg-emerald-50" />
+                   <ToolButton icon={<Share2 className="w-4 h-4" />} color="text-blue-500 hover:bg-blue-50" />
+                   <ToolButton icon={<Printer className="w-4 h-4" />} color="text-slate-500 hover:bg-slate-50" />
+                </div>
              </div>
           </div>
+
+          {/* 3. TABS NAVIGATION */}
+          <div className="px-6 bg-white border-b border-slate-200 z-20 flex-none overflow-x-auto">
+             <div className="max-w-[1700px] mx-auto">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-fit">
+                  <TabsList className="h-12 bg-transparent p-0 gap-8">
+                    <TabsTrigger value="itens" className="tab-style">Itens</TabsTrigger>
+                    <TabsTrigger value="informações" className="tab-style">Informações</TabsTrigger>
+                    <TabsTrigger value="resumo" className="tab-style">Resumo da Compra</TabsTrigger>
+                    <TabsTrigger value="arquivos" className="tab-style">Arquivos</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+             </div>
+          </div>
+
+          {/* 4. MAIN CONTENT AREA (SCROLLABLE) */}
+          <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
+            <div className="max-w-[1700px] mx-auto p-6">
+               <Tabs value={activeTab} className="w-full">
+                  <TabsContent value="itens" className="m-0 outline-none space-y-6">
+                    {items.length === 0 ? (
+                      <EmptyState onObra={() => setIsProjectSelectorOpen(true)} onEmpresa={() => {
+                        setItems([...items, { description: "", unit: "un", quantity: 1, unitPrice: 0, projectId: null, stageId: null }]);
+                        setExpandedGroups({ "HEADQUARTERS-NONE": true });
+                      }} />
+                    ) : (
+                      <Card className="border-slate-200 shadow-sm overflow-hidden rounded-2xl bg-white">
+                        <Table>
+                          <TableHeader className="bg-slate-50/50">
+                            <TableRow className="hover:bg-transparent border-b border-slate-200 h-10">
+                              <TableHead className="w-[80px] text-center font-black text-slate-400 text-[10px] uppercase tracking-wider pl-4">Item</TableHead>
+                              <TableHead className="font-black text-slate-500 text-[10px] uppercase tracking-wider">Descrição</TableHead>
+                              <TableHead className="w-[100px] text-center font-black text-slate-500 text-[10px] uppercase tracking-wider">Unidade</TableHead>
+                              <TableHead className="w-[120px] text-center font-black text-slate-500 text-[10px] uppercase tracking-wider">Quantidade</TableHead>
+                              <TableHead className="w-[160px] text-right font-black text-slate-500 text-[10px] uppercase tracking-wider">Valor Unitário</TableHead>
+                              <TableHead className="w-[160px] text-right font-black text-slate-500 text-[10px] uppercase tracking-wider pr-4">Valor</TableHead>
+                              <TableHead className="w-[60px]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {Object.entries(groupedItems).map(([groupKey, groupItems]) => {
+                              const [projId, stageId] = groupKey.split('-');
+                              const project = projects?.find(p => p.id === projId);
+                              const stage = project?.stages.find(s => s.id === stageId);
+                              const isExpanded = expandedGroups[groupKey] !== false;
+
+                              return (
+                                <Fragment key={groupKey}>
+                                  <TableRow 
+                                    className="bg-slate-50/60 hover:bg-slate-100/80 border-y border-slate-200 cursor-pointer select-none h-11"
+                                    onClick={() => toggleGroup(groupKey)}
+                                  >
+                                    <TableCell colSpan={7} className="py-0 px-5">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
+                                              <Building2 className="w-3.5 h-3.5 text-orange-600" />
+                                            </div>
+                                            <span className="text-xs font-black text-slate-700 uppercase">{project?.name || "Empresa"}</span>
+                                          </div>
+                                          {stage && (
+                                            <div className="flex items-center gap-2 border-l border-slate-200 pl-4">
+                                              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                                                <FileText className="w-3.5 h-3.5 text-blue-500" />
+                                              </div>
+                                              <span className="text-xs font-bold text-slate-500 uppercase">{stage.name}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                           <Button 
+                                             size="sm" 
+                                             type="button"
+                                             onClick={(e) => {
+                                               e.stopPropagation();
+                                               setItems([...items, { description: "", unit: "un", quantity: 1, unitPrice: 0, projectId: projId === "HEADQUARTERS" ? null : projId, stageId: stageId === "NONE" ? null : stageId }]);
+                                               if (!isExpanded) toggleGroup(groupKey);
+                                             }}
+                                             className="h-7 bg-[#22c55e] hover:bg-[#16a34a] text-white font-black px-3 rounded-lg text-[9px] uppercase shadow-sm"
+                                           >
+                                             <Plus className="w-3 h-3 mr-1" /> Item
+                                           </Button>
+                                           <ChevronDown className={cn("w-4 h-4 text-slate-400 transition-transform", isExpanded && "rotate-180")} />
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                  {isExpanded && groupItems.map((item, idx) => {
+                                    const gIdx = items.indexOf(item);
+                                    return (
+                                      <TableRow key={gIdx} className="hover:bg-blue-50/10 border-b border-slate-50 last:border-0 h-16 group">
+                                        <TableCell className="text-center font-bold text-slate-300 text-xs">{gIdx + 1}</TableCell>
+                                        <TableCell>
+                                          <Input 
+                                            value={item.description} 
+                                            onChange={e => setItems(items.map((it, i) => i === gIdx ? {...it, description: e.target.value} : it))}
+                                            className="h-9 border-transparent hover:border-slate-200 bg-transparent font-bold text-slate-700 focus:bg-white focus:border-blue-400 rounded-lg transition-all" 
+                                          />
+                                        </TableCell>
+                                        <TableCell><Input value={item.unit} onChange={e => setItems(items.map((it, i) => i === gIdx ? {...it, unit: e.target.value} : it))} className="h-9 w-12 mx-auto text-center border-transparent hover:border-slate-200 bg-transparent font-bold" /></TableCell>
+                                        <TableCell><Input type="number" value={item.quantity} onChange={e => setItems(items.map((it, i) => i === gIdx ? {...it, quantity: parseFloat(e.target.value)} : it))} className="h-9 w-20 mx-auto text-center border-transparent hover:border-slate-200 bg-transparent font-bold" /></TableCell>
+                                        <TableCell><Input type="number" value={item.unitPrice} onChange={e => setItems(items.map((it, i) => i === gIdx ? {...it, unitPrice: parseFloat(e.target.value)} : it))} className="h-9 w-28 ml-auto text-right border-transparent hover:border-slate-200 bg-transparent font-bold" /></TableCell>
+                                        <TableCell className="text-right font-black text-slate-800 pr-5 tracking-tight tabular-nums">R$ {(item.quantity * item.unitPrice).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                                        <TableCell>
+                                          <Button variant="ghost" size="icon" onClick={() => setItems(items.filter((_, i) => i !== gIdx))} className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-4 h-4" /></Button>
+                                        </TableCell>
+                                      </TableRow>
+                                    );
+                                  })}
+                                </Fragment>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </Card>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="informações" className="m-0 space-y-6">
+                     <div className="grid grid-cols-2 gap-6">
+                        <SectionCard icon={<Truck className="w-4 h-4 text-orange-500" />} title="LOGÍSTICA & ENTREGA" bgColor="bg-orange-50">
+                           <FormField control={form.control} name="deliveryDays" render={({ field }) => (
+                              <FormItem className="space-y-1.5">
+                                 <FormLabel className="field-label">Prazo de Entrega (dias):</FormLabel>
+                                 <Input type="number" {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
+                              </FormItem>
+                           )} />
+                        </SectionCard>
+                        <SectionCard icon={<CreditCard className="w-4 h-4 text-emerald-500" />} title="DADOS FINANCEIROS & FATURAMENTO" bgColor="bg-emerald-50">
+                           <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                 <FormField control={form.control} name="paymentTerms" render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                       <FormLabel className="field-label">Condição de Pagamento:</FormLabel>
+                                       <Input {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
+                                    </FormItem>
+                                 )} />
+                                 <FormField control={form.control} name="firstDueDate" render={({ field }) => (
+                                    <FormItem className="space-y-1.5">
+                                       <FormLabel className="field-label">1º Vencimento:</FormLabel>
+                                       <Input type="date" {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
+                                    </FormItem>
+                                 )} />
+                              </div>
+
+                              <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                                <FormField
+                                    control={form.control}
+                                    name="billingType"
+                                    render={({ field }) => (
+                                      <FormItem className="space-y-1.5">
+                                        <FormLabel className="field-label">Faturamento:</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isBlocked}>
+                                          <FormControl>
+                                            <SelectTrigger className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                          </FormControl>
+                                          <SelectContent className="rounded-xl">
+                                            <SelectItem value="COMPANY" className="font-bold">Empresa</SelectItem>
+                                            <SelectItem value="CLIENT" className="font-bold">Cliente</SelectItem>
+                                            <SelectItem value="DIRECT" className="font-bold">Faturamento Direto</SelectItem>
+                                            <SelectItem value="MANUAL" className="font-bold">Manualmente</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                {form.watch("billingType") === 'MANUAL' && (
+                                  <FormField
+                                      control={form.control}
+                                      name="billingManualName"
+                                      render={({ field }) => (
+                                        <FormItem className="space-y-1.5">
+                                          <FormLabel className="field-label">Nome Manual:</FormLabel>
+                                          <FormControl>
+                                            <Input {...field} placeholder="Digite o nome..." className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
+                                          </FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                )}
+                              </div>
+                           </div>
+                        </SectionCard>
+                     </div>
+                  </TabsContent>
+               </Tabs>
+            </div>
+          </div>
+
+          {/* 5. FINANCIAL ADJUSTMENTS BAR */}
+          <div className="bg-white border-t border-slate-200 px-6 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.03)] flex-none">
+             <div className="max-w-[1700px] mx-auto flex items-center justify-between gap-10">
+                <div className="grid grid-cols-4 gap-4 flex-1">
+                   <FinancialInput label="(+) Frete:" name="freight" form={form} disabled={isBlocked} />
+                   <FinancialInput label="(+) Despesas:" name="otherExpenses" form={form} disabled={isBlocked} />
+                   <FinancialInput label="(+) Impostos:" name="taxes" form={form} disabled={isBlocked} />
+                   <FinancialInput label="(-) Desconto:" name="discounts" form={form} disabled={isBlocked} type="discount" />
+                </div>
+                <div className="flex flex-col items-end min-w-max border-l border-slate-100 pl-10">
+                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total a Pagar:</span>
+                   <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-black text-slate-400">R$</span>
+                      <span className="text-4xl font-black text-slate-900 tracking-tighter tabular-nums drop-shadow-sm">
+                         {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                   </div>
+                </div>
+             </div>
+          </div>
+
+          {/* 6. GLOBAL FOOTER ACTIONS */}
+          <div className="bg-[#f1f5f9] border-t border-slate-200 px-6 py-3 flex-none">
+             <div className="max-w-[1700px] mx-auto flex items-center gap-3">
+                <Button variant="outline" type="button" className="h-9 px-4 bg-white border-slate-300 text-slate-600 font-bold text-[11px] uppercase gap-2 rounded-lg hover:bg-slate-50 shadow-sm transition-all">
+                   <Search className="w-3.5 h-3.5 text-emerald-500" />
+                   Buscar solicitação
+                </Button>
+             </div>
+          </div>
+
         </form>
       </Form>
 
+      {/* DIALOGS */}
       <ProjectStageSelectorDialog 
-        isOpen={isProjectSelectorOpen}
-        onClose={() => setIsProjectSelectorOpen(false)}
-        projects={projects}
+        isOpen={isProjectSelectorOpen} onClose={() => setIsProjectSelectorOpen(false)} projects={projects}
         onConfirm={(projectId, stageId) => {
           setSelectedContext({ projectId, stageId });
           setIsProjectSelectorOpen(false);
           setIsAddItemDialogOpen(true);
         }}
       />
-
       {!isBlocked && (
         <AddBudgetItemDialog
-          isOpen={isAddItemDialogOpen}
-          onClose={() => setIsAddItemDialogOpen(false)}
+          isOpen={isAddItemDialogOpen} onClose={() => setIsAddItemDialogOpen(false)}
           onConfirm={(selection: any) => {
-            const newItem: OrderItem = {
-              description: selection.description,
-              unit: selection.unit,
-              quantity: selection.quantity || 1,
+            setItems([...items, {
+              description: selection.description, unit: selection.unit, quantity: selection.quantity || 1,
               unitPrice: selection.unitCost || selection.computedCost || 0,
-              projectId: selectedContext?.projectId || null,
-              stageId: selectedContext?.stageId || null
-            };
-            setItems([...items, newItem]);
+              projectId: selectedContext?.projectId || null, stageId: selectedContext?.stageId || null
+            }]);
             setIsAddItemDialogOpen(false);
           }}
-          title="Buscar no Catálogo"
-          type="INPUT"
+          title="Buscar no Catálogo" type="INPUT"
         />
       )}
+
+      <style jsx global>{`
+        .tab-style { @apply h-12 border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent rounded-none px-2 font-black text-slate-400 data-[state=active]:text-slate-900 transition-all uppercase tracking-[0.2em] text-[10px]; }
+        .field-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1; }
+      `}</style>
+    </div>
+  );
+}
+
+// SUBCOMPONENTS
+function HeaderMetric({ label, value }: { label: string, value: string }) {
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{label}</span>
+      <span className="text-base font-black text-slate-900 tracking-tight leading-none">{value}</span>
+    </div>
+  );
+}
+
+function ToolButton({ icon, color }: { icon: React.ReactNode, color: string }) {
+  return (
+    <Button variant="ghost" size="icon" type="button" className={cn("h-9 w-9 rounded-xl transition-all", color)}>
+      {icon}
+    </Button>
+  );
+}
+
+function SectionCard({ icon, title, bgColor, children }: { icon: React.ReactNode, title: string, bgColor: string, children: React.ReactNode }) {
+  return (
+     <Card className="border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white">
+        <div className="p-6">
+           <div className="flex items-center gap-3 border-b border-slate-50 pb-4 mb-6">
+              <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center", bgColor)}>{icon}</div>
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">{title}</h3>
+           </div>
+           {children}
+        </div>
+     </Card>
+  );
+}
+
+function FinancialInput({ label, name, form, disabled, type }: { label: string, name: any, form: any, disabled: boolean, type?: string }) {
+  return (
+    <div className="space-y-1">
+       <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">{label}</span>
+       <div className={cn("flex items-center gap-2 px-3 h-9 bg-slate-50 rounded-lg border transition-all focus-within:ring-2", 
+          type === "discount" ? "border-red-100 focus-within:border-red-400 focus-within:ring-red-50" : "border-slate-200 focus-within:border-blue-400 focus-within:ring-blue-50")}>
+          <span className="text-[10px] font-bold text-slate-300">R$</span>
+          <input 
+            type="number" step="0.01" disabled={disabled}
+            className={cn("bg-transparent border-0 outline-none w-full text-xs font-bold tabular-nums", 
+               type === "discount" ? "text-red-600 placeholder:text-red-200" : "text-slate-700 placeholder:text-slate-300")}
+            {...form.register(name, { valueAsNumber: true })}
+            placeholder="0,00"
+          />
+       </div>
+    </div>
+  );
+}
+
+function EmptyState({ onObra, onEmpresa }: { onObra: () => void, onEmpresa: () => void }) {
+  return (
+    <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl py-24 flex flex-col items-center justify-center text-center shadow-inner">
+       <p className="text-slate-400 font-bold text-lg mb-10 max-w-sm px-6">
+         Selecione o destino da compra para começar a adicionar itens
+       </p>
+       <div className="flex flex-wrap justify-center gap-4">
+          <Button type="button" onClick={onObra} className="h-14 bg-blue-50 hover:bg-blue-100 text-blue-700 font-black px-8 rounded-2xl gap-3 transition-all active:scale-95 shadow-lg shadow-blue-100/50">
+             <PlusCircle className="w-5 h-5" /> + Obra
+          </Button>
+          <Button type="button" onClick={onEmpresa} className="h-14 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-black px-8 rounded-2xl gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-100/50">
+             <Briefcase className="w-5 h-5" /> + Empresa
+          </Button>
+       </div>
     </div>
   );
 }

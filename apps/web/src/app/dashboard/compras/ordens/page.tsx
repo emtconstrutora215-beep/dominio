@@ -1,7 +1,7 @@
 "use client";
 
 import { trpc } from "@/trpc/client";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Table,
@@ -16,296 +16,302 @@ import { Button } from "@/components/ui/button";
 import { 
   Plus, 
   ShoppingCart, 
-  Truck, 
-  Calendar, 
-  UserCheck, 
-  Building2,
-  DollarSign,
-  Loader2,
+  Printer,
+  Share2,
   Search,
   Filter,
-  CreditCard,
+  Info,
+  ChevronDown,
+  Calendar,
+  DollarSign,
+  Sitemap,
+  History,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  Loader2,
+  Trash2,
   ChevronRight
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { useState } from "react";
+import {
+  Dialog as AlertDialog,
+  DialogContent as AlertDialogContent,
+  DialogDescription as AlertDialogDescription,
+  DialogFooter as AlertDialogFooter,
+  DialogHeader as AlertDialogHeader,
+  DialogTitle as AlertDialogTitle,
+  DialogTrigger as AlertDialogTrigger,
+  DialogClose as AlertDialogCancel,
+} from "@/components/ui/dialog";
+
+// Placeholder for AlertDialogAction
+const AlertDialogAction = Button;
 
 export default function PurchaseOrdersPage() {
   const router = useRouter();
+  const utils = trpc.useUtils();
+  const [searchTerm, setSearchTerm] = useState("");
+  
   const { data: orders, isLoading } = trpc.purchasing.getOrders.useQuery();
 
-  // Calculate metrics
-  const totalValue = orders?.reduce((acc, order: any) => {
-    const winner = order.quote?.suppliers?.[0];
-    return acc + (winner ? (winner.totalPrice + winner.freight) : 0);
-  }, 0) || 0;
+  const toggleApproval = trpc.purchasing.toggleOrderApproval.useMutation({
+    onSuccess: () => {
+      utils.purchasing.getOrders.invalidate();
+      toast.success("Status de aprovação atualizado.");
+    },
+    onError: (err) => toast.error(err.message)
+  });
 
-  const pendingReceipt = orders?.filter(o => o.status === 'AWAITING_RECEIPT').length || 0;
-  const receivedCount = orders?.filter(o => o.status === 'RECEIVED').length || 0;
-  const totalOrders = orders?.length || 0;
+  const deleteMutation = trpc.purchasing.deleteOrder.useMutation({
+    onSuccess: () => {
+      toast.success("Ordem de Compra excluída com sucesso.");
+      utils.purchasing.getOrders.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message);
+    }
+  });
+
+  const billingLabels: Record<string, string> = {
+    COMPANY: "Faturamento: Empresa",
+    CLIENT: "Faturamento: Cliente",
+    DIRECT: "Faturamento: Direto",
+    MANUAL: "Faturamento: Manual"
+  };
 
   if (isLoading) return (
     <div className="p-8 flex flex-col items-center justify-center min-h-[60vh] gap-4">
       <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-      <p className="text-slate-400 font-bold animate-pulse">Sincronizando Ordens de Compra...</p>
+      <p className="text-slate-400 font-bold animate-pulse">Carregando ordens...</p>
     </div>
   );
 
   return (
-    <div className="p-6 md:p-10 space-y-8 bg-[#f8fafc] min-h-screen font-sans antialiased">
-      {/* 1. HEADER & ACTIONS */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-             <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">Módulo ERP</span>
-             <span className="text-slate-300">/</span>
-             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Suprimentos</span>
-          </div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-             <ShoppingCart className="w-8 h-8 text-slate-800" />
-             Hub de Gestão de Compras
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Visão consolidada de ordens emitidas, fluxo de caixa e recebimento físico.</p>
+    <div className="flex flex-col h-screen bg-[#F1F3F4] overflow-hidden font-sans">
+      {/* 1. TOP HEADER (Dense ERP Style) */}
+      <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shadow-sm flex-none">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-slate-700 tracking-tight">Ordem de Compra</h1>
+          <Info className="w-4 h-4 text-slate-300 cursor-help" />
         </div>
         
-        <div className="flex items-center gap-3">
-           <Button variant="outline" className="h-12 border-slate-200 bg-white font-bold text-slate-600 gap-2 px-6 rounded-xl hover:bg-slate-50 transition-all">
-              <Calendar className="w-5 h-5 text-slate-400" />
-              Relatórios
-           </Button>
-           <Link href="/dashboard/compras/ordens/nova">
-            <Button className="bg-[#22c55e] hover:bg-[#16a34a] text-white font-black h-12 px-8 rounded-xl gap-2 shadow-lg shadow-green-500/20 active:scale-95 transition-all text-base border-0">
-              <Plus className="w-6 h-6" />
-              Nova Ordem Direta
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/compras/ordens/nova">
+            <Button className="bg-[#28A745] hover:bg-[#218838] text-white font-bold h-8 px-4 rounded gap-1 text-xs">
+              <Plus className="w-3 h-3" />
+              Novo
             </Button>
           </Link>
+          <Button className="bg-[#17A2B8] hover:bg-[#138496] text-white font-bold h-8 px-4 rounded gap-1 text-xs">
+            <Plus className="w-3 h-3" />
+            Orçado x Comprado
+          </Button>
+          <Button variant="outline" className="h-8 w-8 p-0 border-slate-200 bg-[#17A2B8] text-white hover:bg-[#138496]">
+             <Printer className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" className="h-8 w-8 p-0 border-slate-200 bg-[#17A2B8] text-white hover:bg-[#138496]">
+             <Share2 className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
-      {/* 2. METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-         <Card className="border-0 shadow-sm bg-white overflow-hidden group">
-            <div className="p-6 relative">
-               <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-blue-500 transition-colors duration-300">
-                     <DollarSign className="w-6 h-6 text-blue-500 group-hover:text-white transition-colors duration-300" />
-                  </div>
-                  <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 border-0 font-black">+12%</Badge>
-               </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Total Movimentado</span>
-               <div className="text-2xl font-black text-slate-900">
-                  R$ {totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-               </div>
-            </div>
-         </Card>
-
-         <Card className="border-0 shadow-sm bg-white overflow-hidden group">
-            <div className="p-6 relative">
-               <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 transition-colors duration-300">
-                     <ShoppingCart className="w-6 h-6 text-orange-500 group-hover:text-white transition-colors duration-300" />
-                  </div>
-                  <span className="text-slate-300 text-[10px] font-bold">Total: {totalOrders}</span>
-               </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Pedidos Emitidos</span>
-               <div className="text-2xl font-black text-slate-900">
-                  {totalOrders} <span className="text-sm text-slate-400 font-bold ml-1">Ordens</span>
-               </div>
-            </div>
-         </Card>
-
-         <Card className="border-0 shadow-sm bg-white overflow-hidden group">
-            <div className="p-6 relative">
-               <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center group-hover:bg-amber-500 transition-colors duration-300">
-                     <Truck className="w-6 h-6 text-amber-500 group-hover:text-white transition-colors duration-300" />
-                  </div>
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-0 font-black">Atenção</Badge>
-               </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Pendente Recebimento</span>
-               <div className="text-2xl font-black text-slate-900">
-                  {pendingReceipt} <span className="text-sm text-slate-400 font-bold ml-1">OCs</span>
-               </div>
-            </div>
-         </Card>
-
-         <Card className="border-0 shadow-sm bg-white overflow-hidden group">
-            <div className="p-6 relative">
-               <div className="flex items-center justify-between mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-500 transition-colors duration-300">
-                     <UserCheck className="w-6 h-6 text-emerald-500 group-hover:text-white transition-colors duration-300" />
-                  </div>
-                  <span className="text-slate-300 text-[10px] font-bold">Taxa: 98%</span>
-               </div>
-               <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-1">Pedidos Concluídos</span>
-               <div className="text-2xl font-black text-slate-900">
-                  {receivedCount} <span className="text-sm text-slate-400 font-bold ml-1">Ordens</span>
-               </div>
-            </div>
-         </Card>
-      </div>
-
-      {/* 3. LIST HUB */}
-      <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm">
-        <div className="border-b border-slate-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
-           <div className="flex items-center gap-4 flex-1 max-w-md">
-              <div className="relative w-full">
-                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                 <input 
-                   placeholder="Buscar por número, fornecedor ou obra..." 
-                   className="w-full h-11 pl-10 pr-4 bg-white border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition-all font-medium text-sm"
-                 />
-              </div>
-           </div>
-           
-           <div className="flex items-center gap-3">
-              <Button variant="ghost" className="h-11 font-bold text-slate-500 hover:text-blue-500 hover:bg-blue-50 gap-2">
-                 <Filter className="w-4 h-4" />
-                 Filtros Avançados
-              </Button>
-              <div className="h-6 w-[1px] bg-slate-200 mx-1 hidden md:block" />
-              <div className="flex items-center bg-slate-100 p-1 rounded-lg">
-                 <button className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md bg-white shadow-sm text-slate-700 transition-all">Ativas</button>
-                 <button className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md text-slate-400 hover:text-slate-600 transition-all">Histórico</button>
-              </div>
-           </div>
+      {/* 2. FILTER BAR (Horizontal Layout) */}
+      <div className="bg-[#F8F9FA] border-b border-slate-200 px-4 py-2 flex items-center gap-3 flex-none">
+        <div className="relative flex-1 max-w-[400px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Input 
+            placeholder="Busque pelo número ou valor..." 
+            className="h-8 pl-9 bg-white border-slate-300 rounded text-xs"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        <Table>
-          <TableHeader className="bg-slate-50/50">
-            <TableRow className="hover:bg-transparent border-b border-slate-100 h-14">
-              <TableHead className="w-[110px] font-black text-[10px] text-slate-400 uppercase tracking-[0.15em] pl-8"># ID</TableHead>
-              <TableHead className="w-[120px] font-black text-[10px] text-slate-400 uppercase tracking-[0.15em]">Data</TableHead>
-              <TableHead className="font-black text-[10px] text-slate-400 uppercase tracking-[0.15em]">Fornecedor</TableHead>
-              <TableHead className="font-black text-[10px] text-slate-400 uppercase tracking-[0.15em]">Centro de Custo</TableHead>
-              <TableHead className="w-[180px] font-black text-[10px] text-slate-400 uppercase tracking-[0.15em]">Investimento</TableHead>
-              <TableHead className="w-[150px] font-black text-[10px] text-slate-400 uppercase tracking-[0.15em]">Status</TableHead>
+        <div className="flex items-center gap-1">
+          <Input type="text" defaultValue="15/04/2026" className="h-8 w-28 bg-white border-slate-300 rounded text-xs text-center" />
+          <span className="text-xs text-slate-400 px-1">até</span>
+          <Input type="text" defaultValue="15/05/2026" className="h-8 w-28 bg-white border-slate-300 rounded text-xs text-center" />
+          <div className="cursor-pointer bg-white border border-slate-300 h-8 px-2 flex items-center">
+             <Calendar className="w-4 h-4 text-slate-400" />
+          </div>
+        </div>
+
+        <div className="w-48">
+          <Select defaultValue="all">
+            <SelectTrigger className="h-8 bg-white border-slate-300 rounded text-xs">
+              <SelectValue placeholder="Todas as Aprovações" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Aprovações</SelectItem>
+              <SelectItem value="pending">Pendentes</SelectItem>
+              <SelectItem value="approved">Aprovadas</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button variant="outline" className="h-8 w-8 p-0 border-slate-300 bg-white shadow-sm">
+           <Filter className="w-4 h-4 text-slate-500" />
+        </Button>
+      </div>
+
+      {/* 3. SCROLLABLE TABLE AREA */}
+      <div className="flex-1 overflow-auto bg-white">
+        <Table className="border-collapse">
+          <TableHeader className="bg-[#F8F9FA] sticky top-0 z-10 border-b border-slate-200">
+            <TableRow className="h-10 hover:bg-transparent">
+              <TableHead className="w-[80px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Número ▲</TableHead>
+              <TableHead className="text-zinc-700 font-bold text-[11px] border-r border-slate-100">Fornecedor</TableHead>
+              <TableHead className="w-[200px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Valor ▲</TableHead>
+              <TableHead className="text-zinc-700 font-bold text-[11px] border-r border-slate-100">Centro de Custo</TableHead>
+              <TableHead className="w-[180px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Criação ▲</TableHead>
+              <TableHead className="w-[100px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Solicitação</TableHead>
+              <TableHead className="w-[100px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Cotação</TableHead>
+              <TableHead className="w-[80px] text-center text-zinc-700 font-bold text-[11px] border-r border-slate-100">Aprovação</TableHead>
+              <TableHead className="w-[120px] text-zinc-700 font-bold text-[11px] border-r border-slate-100">Prev. Entrega ▲</TableHead>
               <TableHead className="w-[100px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {orders?.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-slate-400 py-24">
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="w-20 h-20 rounded-full bg-slate-50 flex items-center justify-center">
-                       <ShoppingCart className="w-10 h-10 text-slate-200" />
+            {orders?.map((order: any) => {
+              const winner = order.quote?.suppliers?.[0];
+              const total = winner ? (winner.totalPrice + winner.freight) : 0;
+              const isApproved = order.status !== 'PENDING_APPROVAL' && order.status !== 'REJECTED';
+
+              return (
+                <TableRow 
+                  key={order.id} 
+                  className="h-14 border-b border-slate-100 group hover:bg-slate-50/50 transition-colors"
+                >
+                  <TableCell className="text-xs text-slate-500 font-medium py-2">
+                    {order.number || order.id.slice(-4)}
+                  </TableCell>
+                  <TableCell className="text-[11px] font-semibold text-slate-600 uppercase">
+                    {winner?.supplierName || "FORNECEDOR DIRETO"}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-700 tracking-tight">
+                        R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {order.billingManualName || billingLabels[order.billingType] || "Faturamento: Empresa"}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        Cond. Pgto: {winner?.paymentTerms || "N/A"}
+                      </span>
                     </div>
-                    <div className="space-y-1">
-                       <p className="font-bold text-slate-600 tracking-tight">Nenhuma ordem encontrada</p>
-                       <p className="text-sm">Inicie uma nova compra direta ou use o fluxo de cotações.</p>
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 opacity-40">
+                         <History className="w-4 h-4" />
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase leading-none">
+                        {order.quote?.request?.project?.name || "Administrativo"}
+                      </span>
                     </div>
-                    <Link href="/dashboard/compras/ordens/nova">
-                       <Button variant="outline" className="mt-4 border-dashed border-2 hover:border-blue-400 hover:text-blue-500 transition-all font-bold">
-                          Criar primeira ordem
-                       </Button>
-                    </Link>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              orders?.map((order: any) => {
-                const winner = order.quote?.suppliers?.[0];
-                const total = winner ? (winner.totalPrice + winner.freight) : 0;
-                
-                return (
-                  <TableRow 
-                    key={order.id} 
-                    onClick={() => router.push(`/dashboard/compras/ordens/${order.id}`)}
-                    className="group hover:bg-blue-50/20 transition-all cursor-pointer border-b border-slate-50 last:border-0 h-[88px]"
-                  >
-                    <TableCell className="pl-8">
-                       <div className="flex flex-col gap-1">
-                          <span className="font-black text-xs text-slate-800 tracking-tight group-hover:text-blue-500 transition-colors">
-                            {order.number || `#${order.id.slice(-6).toUpperCase()}`}
-                          </span>
-                       </div>
-                    </TableCell>
-                    <TableCell>
-                       <div className="flex flex-col">
-                          <span className="text-xs font-bold text-slate-500 tracking-tight">
-                            {format(new Date(order.createdAt), "dd 'de' MMM", { locale: ptBR })}
-                          </span>
-                          <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">
-                            {format(new Date(order.createdAt), "yyyy")}
-                          </span>
-                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="font-black text-slate-700 tracking-tight group-hover:underline decoration-blue-500/30 decoration-2 underline-offset-4">{winner?.supplierName || "---"}</span>
-                        <div className="flex items-center gap-1.5 pt-0.5">
-                           <CreditCard className="w-3 h-3 text-slate-300" />
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{winner?.paymentTerms || 'Consulte financeiro'}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-100 transition-colors">
-                           <Building2 className="w-4 h-4 text-[#F07B2B]" />
-                        </div>
-                        <div className="flex flex-col">
-                           <span className="text-xs font-black text-slate-700 uppercase tracking-tight">
-                             {order.quote?.request?.project?.name || "SEDE / ADMINISTRATIVO"}
-                           </span>
-                           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter truncate max-w-[150px]">
-                              {order.quote?.request?.approver?.name || "Responsável não definido"}
-                           </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 w-fit group-hover:bg-white group-hover:border-blue-200 transition-all">
-                        <div className="flex items-baseline gap-1.5">
-                           <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest leading-none">R$</span>
-                           <span className="text-lg font-black text-slate-800 tracking-tighter tabular-nums leading-none">
-                              {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                           </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="secondary"
-                        className={`
-                          font-black text-[9px] uppercase tracking-[0.1em] px-3 py-1 rounded-lg border-0 shadow-sm
-                          ${order.status === 'RECEIVED' ? 'bg-emerald-500 text-white' : 
-                            order.status === 'PARTIALLY_RECEIVED' ? 'bg-blue-500 text-white' : 
-                            order.status === 'AWAITING_RECEIPT' ? 'bg-amber-500 text-white shadow-amber-200/50' : 
-                            'bg-slate-100 text-slate-500'}
-                        `}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-slate-500">
+                        {format(new Date(order.createdAt), "dd/MM/yyyy")}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-medium italic">
+                        Por: {order.quote?.request?.approver?.name || "Administrador"}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center text-xs text-slate-400">-</TableCell>
+                  <TableCell className="text-center text-xs text-slate-400">-</TableCell>
+                  <TableCell className="text-center">
+                    <Checkbox 
+                      checked={isApproved} 
+                      onCheckedChange={() => toggleApproval.mutate({ orderId: order.id })}
+                      className="border-slate-300"
+                    />
+                  </TableCell>
+                  <TableCell className="text-center text-[11px] text-slate-500">
+                    {format(new Date(), "dd/MM/yyyy")}
+                  </TableCell>
+                  <TableCell className="py-1">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all pr-2">
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-blue-500">
+                         <History className="w-4 h-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-300 hover:text-emerald-500">
+                         <DollarSign className="w-4 h-4" />
+                      </Button>
+                      
+                      <div className="w-[1px] h-4 bg-slate-200 mx-0.5" />
+
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 text-slate-300 hover:text-red-500"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Excluir Ordem de Compra?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta ação é irreversível e removerá todos os lançamentos financeiros vinculados.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => deleteMutation.mutate({ orderId: order.id })}
+                                  className="bg-red-500 hover:bg-red-600 text-white"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                      </AlertDialog>
+
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-slate-300 hover:text-blue-600"
+                        onClick={() => router.push(`/dashboard/compras/ordens/${order.id}`)}
                       >
-                        {order.status === 'RECEIVED' ? 'Concluído' : 
-                         order.status === 'PARTIALLY_RECEIVED' ? 'Recebido Parcial' : 
-                         order.status === 'AWAITING_RECEIPT' ? 'Pendente' : order.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                       <div className="flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button variant="ghost" size="icon" className="h-10 w-10 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all">
-                             <ChevronRight className="w-5 h-5" />
-                          </Button>
-                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
+                         <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
-        
-        <div className="p-6 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-400">
-           <div className="flex items-center gap-4">
-              <span>Total de registros: {totalOrders}</span>
-              <div className="h-3 w-[1px] bg-slate-200" />
-              <span>Itens exibidos: {orders?.length}</span>
-           </div>
-           <div className="flex items-center gap-2">
-              <Button disabled variant="outline" size="sm" className="h-8 rounded-lg bg-white opacity-50">Anterior</Button>
-              <Button disabled variant="outline" size="sm" className="h-8 rounded-lg bg-white opacity-50">Próxima</Button>
-           </div>
+      </div>
+
+      {/* 4. FOOTER STATS */}
+      <div className="bg-[#EEE] border-t border-slate-300 px-4 py-1 flex items-center justify-between text-[10px] font-bold text-slate-500 flex-none">
+        <div className="flex gap-4">
+           <span>Total de Pedidos: {orders?.length || 0}</span>
+           <span>Pendente Recebimento: {orders?.filter((o:any) => o.status === 'AWAITING_RECEIPT').length || 0}</span>
+        </div>
+        <div className="flex gap-4">
+           <span className="text-emerald-600">Total Valor: R$ {orders?.reduce((acc: number, o: any) => acc + (o.quote?.suppliers?.[0]?.totalPrice || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
         </div>
       </div>
     </div>

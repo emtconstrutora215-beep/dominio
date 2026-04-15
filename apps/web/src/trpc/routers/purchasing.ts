@@ -79,6 +79,30 @@ export const purchasingRouter = router({
       });
     }),
 
+  getRequestWithQuote: protectedProcedure
+    .input(z.object({ requestId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const request = await ctx.prisma.purchaseRequest.findUnique({
+        where: { id: input.requestId },
+        include: {
+          items: true,
+          requester: { select: { name: true } },
+          project: { 
+            include: { 
+              stages: true 
+            } 
+          },
+          stage: { select: { name: true } },
+          quotes: {
+            include: {
+              suppliers: true
+            }
+          }
+        }
+      });
+      return request;
+    }),
+
   createSupplierQuote: protectedProcedure
     .input(z.object({
       quoteId: z.string().optional(),
@@ -179,6 +203,156 @@ export const purchasingRouter = router({
       });
     }),
 
+  updateQuotation: protectedProcedure
+    .input(z.object({
+      requestId: z.string(),
+      description: z.string().optional(),
+      status: z.string().optional(),
+      projectId: z.string().optional().nullable(),
+      stageId: z.string().optional().nullable(),
+      items: z.array(z.object({
+        id: z.string().optional(),
+        description: z.string(),
+        unit: z.string(),
+        quantity: z.number().positive(),
+      })),
+      suppliers: z.array(z.object({
+        id: z.string().optional(),
+        supplierName: z.string(),
+        totalPrice: z.number(),
+        deliveryDays: z.number(),
+        paymentTerms: z.string(),
+        freight: z.number(),
+        isWinner: z.boolean().optional(),
+      }))
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 1. Update PurchaseRequest
+        const request = await tx.purchaseRequest.update({
+          where: { id: input.requestId },
+          data: {
+            notes: input.description,
+            projectId: input.projectId,
+            stageId: input.stageId,
+            items: {
+              deleteMany: {}, // Delete all and recreate to sync with form
+              create: input.items.map(i => ({
+                description: i.description,
+                unit: i.unit,
+                quantity: i.quantity,
+                projectId: input.projectId,
+                stageId: input.stageId,
+              }))
+            }
+          },
+          include: { quotes: true }
+        });
+
+        // 2. Ensure Quote exists
+        let quote = request.quotes[0];
+        if (!quote) {
+          quote = await tx.quote.create({
+            data: { requestId: request.id }
+          });
+        }
+
+        // 3. Update Suppliers
+        // We delete all and recreate for simplicity in syncing the form state
+        await tx.quoteSupplier.deleteMany({
+          where: { quoteId: quote.id }
+        });
+
+        if (input.suppliers.length > 0) {
+          await tx.quoteSupplier.createMany({
+            data: input.suppliers.map(s => ({
+              quoteId: quote.id,
+              supplierName: s.supplierName,
+              unitPrice: s.totalPrice / (input.items.length || 1), // approximation
+              totalPrice: s.totalPrice,
+              deliveryDays: s.deliveryDays,
+              paymentTerms: s.paymentTerms,
+              freight: s.freight,
+              isWinner: s.isWinner || false
+            }))
+          });
+        }
+
+        return request;
+      });
+    }),
+
+  deleteQuotation: protectedProcedure
+    .input(z.object({ requestId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const request = await ctx.prisma.purchaseRequest.findUnique({
+        where: { id: input.requestId },
+        include: { quotes: { include: { order: true } } }
+      });
+
+      if (!request) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Cotação não encontrada.' });
+      }
+
+      // Check for related orders
+      const hasOrder = request.quotes.some(q => q.order);
+      if (hasOrder) {
+        throw new TRPCError({ 
+          code: 'BAD_REQUEST', 
+          message: 'Não é possível excluir uma cotação que já possui uma Ordem de Compra gerada. Cancele a ordem primeiro.' 
+        });
+      }
+
+      return ctx.prisma.purchaseRequest.delete({
+        where: { id: input.requestId }
+      });
+    }),
+
+  deleteOrder: protectedProcedure
+    .input(z.object({ orderId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.prisma.purchaseOrder.findUnique({
+        where: { id: input.orderId },
+        include: { 
+          goodsReceipts: true,
+          financialEntries: true
+        }
+      });
+
+      if (!order) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Ordem de Compra não encontrada.' });
+      }
+
+      // 1. Block if there are goods receipts
+      if (order.goodsReceipts.length > 0) {
+        throw new TRPCError({ 
+          code: 'BAD_REQUEST', 
+          message: 'Não é possível excluir uma ordem que já possui recebimentos físicos de materiais.' 
+        });
+      }
+
+      // 2. Block if any financial entry is PAID
+      const hasPaidEntries = order.financialEntries.some(e => e.status === 'PAID');
+      if (hasPaidEntries) {
+        throw new TRPCError({ 
+          code: 'BAD_REQUEST', 
+          message: 'Não é possível excluir uma ordem que já possui parcelas financeiras pagas.' 
+        });
+      }
+
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 3. Delete financial entries
+        await tx.financialEntry.deleteMany({
+          where: { purchaseOrderId: order.id }
+        });
+
+        // 4. Delete the order
+        return tx.purchaseOrder.delete({
+          where: { id: order.id }
+        });
+      });
+    }),
+
   markWinningSupplier: protectedProcedure
     .input(z.object({
       quoteId: z.string(),
@@ -264,6 +438,24 @@ export const purchasingRouter = router({
 
       return order;
     }),
+
+  getNextOrderNumber: protectedProcedure.query(async ({ ctx }) => {
+    const orders = await ctx.prisma.purchaseOrder.findMany({
+      where: { 
+        quote: { 
+          request: { 
+            companyId: ctx.companyId! 
+          } 
+        } 
+      },
+      select: { number: true }
+    });
+    const numbers = orders
+      .map((o: any) => parseInt(o.number || "0"))
+      .filter((n: number) => !isNaN(n));
+    const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+    return (maxNumber + 1).toString();
+  }),
 
   generateOrder: protectedProcedure
     .input(z.object({
@@ -445,9 +637,10 @@ export const purchasingRouter = router({
 
   createDirectOrder: protectedProcedure
     .input(z.object({
+      supplierId: z.string(),
+      supplierName: z.string(),
       projectId: z.string().optional().nullable(),
       stageId: z.string().optional().nullable(),
-      supplierName: z.string(),
       items: z.array(z.object({
         description: z.string(),
         unit: z.string(),
@@ -466,13 +659,30 @@ export const purchasingRouter = router({
       firstDueDate: z.string(), // ISO date
       category: z.string().default('Materiais'),
       orderNumber: z.string().optional(),
+      status: z.enum(['OPEN', 'NEGOTIATING', 'PENDING_APPROVAL', 'REJECTED', 'ISSUED', 'AWAITING_RECEIPT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PARTIALLY_PAID', 'PAID']).default('OPEN'),
       approverId: z.string().optional(),
+      billingType: z.enum(['COMPANY', 'CLIENT', 'DIRECT', 'MANUAL']).default('COMPANY'),
+      billingManualName: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const itemsAmount = input.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
       const totalAmount = itemsAmount + input.freight + input.otherExpenses + input.taxes - input.discounts;
 
       return ctx.prisma.$transaction(async (tx: any) => {
+        // 0. Auto-calculate Order Number if not provided
+        let nextNumber = input.orderNumber;
+        if (!nextNumber) {
+          const orders = await tx.purchaseOrder.findMany({
+            where: { quote: { request: { companyId: ctx.companyId! } } },
+            select: { number: true }
+          });
+          const numbers = orders
+            .map((o: any) => parseInt(o.number || "0"))
+            .filter((n: number) => !isNaN(n));
+          const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+          nextNumber = (maxNumber + 1).toString();
+        }
+
         // 1. Create PurchaseRequest (Approved)
         const request = await tx.purchaseRequest.create({
           data: {
@@ -518,9 +728,11 @@ export const purchasingRouter = router({
         const order = await tx.purchaseOrder.create({
           data: {
             quoteId: quote.id,
-            status: 'AWAITING_RECEIPT',
-            number: input.orderNumber,
+            status: input.status,
+            number: nextNumber,
             approverId: input.approverId,
+            billingType: input.billingType,
+            billingManualName: input.billingManualName,
           }
         });
 
@@ -543,11 +755,28 @@ export const purchasingRouter = router({
           };
         });
 
-        await tx.financialEntry.createMany({
+        await ctx.prisma.financialEntry.createMany({
           data: entries
         });
 
         return order;
+      });
+    }),
+
+  toggleOrderApproval: protectedProcedure
+    .input(z.object({ orderId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const order = await ctx.prisma.purchaseOrder.findUnique({
+        where: { id: input.orderId }
+      });
+
+      if (!order) throw new TRPCError({ code: 'NOT_FOUND' });
+
+      return ctx.prisma.purchaseOrder.update({
+        where: { id: input.orderId },
+        data: {
+          status: order.status === 'AWAITING_RECEIPT' ? 'PENDING_APPROVAL' : 'AWAITING_RECEIPT'
+        }
       });
     }),
 
@@ -576,6 +805,7 @@ export const purchasingRouter = router({
       firstDueDate: z.string(),
       category: z.string().default('Materiais'),
       orderNumber: z.string().optional(),
+      status: z.enum(['OPEN', 'NEGOTIATING', 'PENDING_APPROVAL', 'REJECTED', 'ISSUED', 'AWAITING_RECEIPT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PARTIALLY_PAID', 'PAID']).optional(),
       approverId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -671,6 +901,7 @@ export const purchasingRouter = router({
           where: { id: existingOrder.id },
           data: {
             number: input.orderNumber,
+            status: input.status,
             approverId: input.approverId,
           }
         });
