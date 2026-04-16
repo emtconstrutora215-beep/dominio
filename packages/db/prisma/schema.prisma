@@ -266,6 +266,7 @@ model ProjectStage {
   successors    StageDependency[]   @relation("PredecessorStages") // Dependências que vêm DEPOIS desta etapa
   distributions StageDistribution[] // Opcional, overrides lineares da Curva-S
   purchaseRequests PurchaseRequest[]
+  financialSplits  FinancialEntrySplit[]
 }
 
 model Budget {
@@ -440,18 +441,37 @@ model FinancialEntry {
 
   measurementId String?      @unique
   measurement   Measurement? @relation(fields: [measurementId], references: [id], onDelete: SetNull)
+
+  documentNumber   String?
+  paymentCondition String?
+  contactId        String?
+  contact          Contact? @relation(fields: [contactId], references: [id])
+
+  paymentMethod   String?
+  bankAccountId   String?
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id])
+  goodsReceiptId  String?
+  goodsReceipt    GoodsReceipt? @relation(fields: [goodsReceiptId], references: [id])
+  contractId      String?
+  contract        Contract? @relation(fields: [contractId], references: [id])
+  retentions      Float?
+  observations    String?
+  attachmentUrls  String[] @default([])
+  payerType       String?
 }
 
 model FinancialEntrySplit {
   id               String   @id @default(uuid())
   financialEntryId String
   projectId        String
+  projectStageId   String?
   percentage       Float
   amount           Float
   createdAt        DateTime @default(now())
 
   financialEntry FinancialEntry @relation(fields: [financialEntryId], references: [id], onDelete: Cascade)
   project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectStage   ProjectStage?  @relation(fields: [projectStageId], references: [id])
 }
 
 model BankAccount {
@@ -465,9 +485,10 @@ model BankAccount {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  transactions BankTransaction[]
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  transactions       BankTransaction[]
   defaultForProjects Project[]
+  financialEntries   FinancialEntry[]
 }
 
 model BankTransaction {
@@ -518,6 +539,7 @@ model GoodsReceipt {
   depot         Depot              @relation(fields: [depotId], references: [id])
   receivedBy    User               @relation("ReceiptReceiverRelation", fields: [receivedById], references: [id])
   items         GoodsReceiptItem[]
+  financialEntries FinancialEntry[]
 }
 
 model GoodsReceiptItem {
@@ -668,6 +690,7 @@ model Contract {
   project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   items        ContractItem[]
   measurements Measurement[]
+  financialEntries FinancialEntry[]
 }
 
 model ContractItem {
@@ -780,8 +803,9 @@ model Contact {
   userId  String? @unique
   user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  projectsAsClient Project[] @relation("ProjectClient")
+  projectsAsClient           Project[] @relation("ProjectClient")
   projectsAsInvoicingContact Project[] @relation("ProjectInvoicingContact")
+  financialEntries           FinancialEntry[]
 
   @@unique([document, companyId])
 }

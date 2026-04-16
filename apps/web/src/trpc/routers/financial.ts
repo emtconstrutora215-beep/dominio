@@ -27,6 +27,43 @@ export const financialRouter = router({
     };
   }),
 
+  getCreateOptions: protectedProcedure.query(async ({ ctx }) => {
+    const [
+      contacts, 
+      bankAccounts, 
+      purchaseOrders, 
+      goodsReceipts, 
+      contracts, 
+      measurements, 
+      projects
+    ] = await Promise.all([
+      ctx.prisma.contact.findMany({ where: { companyId: ctx.companyId }, select: { id: true, name: true, document: true } }),
+      ctx.prisma.bankAccount.findMany({ where: { companyId: ctx.companyId }, select: { id: true, name: true, currentBalance: true } }),
+      ctx.prisma.purchaseOrder.findMany({ 
+        where: { companyId: ctx.companyId, status: 'APPROVED' }, 
+        select: { id: true, number: true, totalValue: true, description: true } 
+      }),
+      ctx.prisma.goodsReceipt.findMany({ 
+        where: { purchaseOrder: { companyId: ctx.companyId } }, 
+        select: { id: true, createdAt: true, purchaseOrder: { select: { number: true } } } 
+      }),
+      ctx.prisma.contract.findMany({ 
+        where: { project: { companyId: ctx.companyId } }, 
+        select: { id: true, supplierName: true, totalValue: true, project: { select: { name: true } } } 
+      }),
+      ctx.prisma.measurement.findMany({ 
+        where: { contract: { project: { companyId: ctx.companyId } }, status: 'APPROVED' }, 
+        select: { id: true, netValue: true, contract: { select: { supplierName: true } } } 
+      }),
+      ctx.prisma.project.findMany({ 
+        where: { companyId: ctx.companyId }, 
+        select: { id: true, name: true, stages: { select: { id: true, name: true } } } 
+      }),
+    ]);
+
+    return { contacts, bankAccounts, purchaseOrders, goodsReceipts, contracts, measurements, projects };
+  }),
+
   createEntry: protectedProcedure
     .input(z.object({
       type: z.enum(['INCOME', 'EXPENSE']),
@@ -34,19 +71,96 @@ export const financialRouter = router({
       description: z.string(),
       amount: z.number(),
       dueDate: z.string(),
-      competencyDate: z.string().optional()
+      competencyDate: z.string().optional(),
+      documentNumber: z.string().optional(),
+      paymentCondition: z.string().optional(),
+      paymentMethod: z.string().optional(),
+      contactId: z.string().optional(),
+      bankAccountId: z.string().optional(),
+      purchaseOrderId: z.string().optional(),
+      goodsReceiptId: z.string().optional(),
+      contractId: z.string().optional(),
+      measurementId: z.string().optional(),
+      retentions: z.number().optional(),
+      observations: z.string().optional(),
+      payerType: z.string().optional(),
+      status: z.enum(['PENDING', 'PAID']).optional(),
+      splits: z.array(z.object({
+        projectId: z.string(),
+        projectStageId: z.string().optional(),
+        percentage: z.number(),
+        amount: z.number()
+      })).optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.financialEntry.create({
+      const { splits, ...data } = input;
+      
+      const entry = await ctx.prisma.financialEntry.create({
         data: {
-          type: input.type,
-          category: input.category,
-          description: input.description,
-          amount: input.amount,
+          ...data,
           dueDate: new Date(input.dueDate),
           competencyDate: input.competencyDate ? new Date(input.competencyDate) : new Date(input.dueDate),
-          companyId: ctx.companyId
+          paidDate: input.status === 'PAID' ? new Date() : null,
+          status: (input.status as any) || 'PENDING',
+          companyId: ctx.companyId,
+          attachmentUrls: [],
+          splits: splits ? {
+            create: splits.map(s => ({
+              projectId: s.projectId,
+              projectStageId: s.projectStageId,
+              percentage: s.percentage,
+              amount: s.amount
+            }))
+          } : undefined
         }
+      });
+
+      return entry;
+    }),
+
+  getEntries: protectedProcedure
+    .input(z.object({
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      search: z.string().optional(),
+      bankAccountId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const where: any = {
+        companyId: ctx.companyId,
+      };
+
+      if (input.startDate || input.endDate) {
+        where.competencyDate = {};
+        if (input.startDate) where.competencyDate.gte = new Date(input.startDate);
+        if (input.endDate) where.competencyDate.lte = new Date(input.endDate);
+      }
+
+      if (input.search) {
+        where.OR = [
+          { description: { contains: input.search, mode: 'insensitive' } },
+          { documentNumber: { contains: input.search, mode: 'insensitive' } },
+          { contact: { name: { contains: input.search, mode: 'insensitive' } } },
+        ];
+      }
+
+      if (input.bankAccountId) {
+        where.bankTransaction = {
+          bankAccountId: input.bankAccountId
+        };
+      }
+
+      return ctx.prisma.financialEntry.findMany({
+        where,
+        include: {
+          contact: { select: { id: true, name: true } },
+          splits: {
+            include: {
+              project: { select: { id: true, name: true } }
+            }
+          }
+        },
+        orderBy: { competencyDate: 'desc' }
       });
     }),
 
