@@ -80,7 +80,7 @@ const formSchema = z.object({
   firstDueDate: z.string().min(1, "Selecione a data de vencimento"),
   category: z.string(),
   orderNumber: z.string().optional(),
-  status: z.string().default('OPEN'),
+  status: z.enum(['OPEN', 'NEGOTIATING', 'PENDING_APPROVAL', 'REJECTED', 'ISSUED', 'AWAITING_RECEIPT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'PARTIALLY_PAID', 'PAID']).default('OPEN'),
   approverId: z.string().optional(),
   billingType: z.enum(['COMPANY', 'CLIENT', 'DIRECT', 'MANUAL']).default('COMPANY'),
   billingManualName: z.string().optional(),
@@ -178,10 +178,21 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
       return;
     }
     const selectedSupplier = suppliers.find(s => s.id === values.supplierId);
+    const sanitizedItems = items.map(({ id, ...rest }) => rest);
+
     if (mode === "create") {
-      createOrder.mutate({ ...values, items, supplierName: selectedSupplier?.name || "Fornecedor Direto" });
+      createOrder.mutate({ 
+        ...values, 
+        items: sanitizedItems, 
+        supplierName: selectedSupplier?.name || "Fornecedor Direto" 
+      });
     } else {
-      updateOrder.mutate({ ...values, items, supplierName: selectedSupplier?.name || "Fornecedor Direto", orderId: initialData.id });
+      updateOrder.mutate({ 
+        ...values, 
+        items: sanitizedItems, 
+        supplierName: selectedSupplier?.name || "Fornecedor Direto", 
+        orderId: initialData.id 
+      });
     }
   };
 
