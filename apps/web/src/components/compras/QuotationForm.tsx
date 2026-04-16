@@ -256,7 +256,13 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
           
           setSupplierFooters(prev => ({
             ...prev,
-            [s.id]: { discount: 0, paymentTerms: s.paymentTerms, deliveryTime: s.deliveryDays.toString() }
+            [s.id]: { 
+              discount: 0, 
+              paymentTerms: s.paymentTerms, 
+              deliveryTime: s.deliveryDays.toString(),
+              billingType: "COMPANY",
+              billingManualName: ""
+            }
           }));
         });
         setComparisonData(comp);
