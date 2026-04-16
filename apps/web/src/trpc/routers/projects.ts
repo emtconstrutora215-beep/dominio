@@ -364,5 +364,25 @@ export const projectsRouter = router({
 
         return project;
       });
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verificar se o projeto pertence à empresa do usuário
+      const project = await ctx.prisma.project.findFirst({
+        where: {
+          id: input.id,
+          companyId: ctx.companyId
+        }
+      });
+
+      if (!project) {
+        throw new Error("Obra não encontrada ou você não tem permissão para excluí-la.");
+      }
+
+      return ctx.prisma.project.delete({
+        where: { id: input.id }
+      });
     })
 });

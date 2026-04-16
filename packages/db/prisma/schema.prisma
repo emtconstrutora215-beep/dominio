@@ -325,6 +325,7 @@ model DailyReport {
 
 model PurchaseRequest {
   id           String        @id @default(uuid())
+  number       String?
   status       RequestStatus @default(DRAFT)
   notes        String?
   rejectReason String?
@@ -333,6 +334,8 @@ model PurchaseRequest {
   requesterId  String
   companyId    String
   approverId   String?
+  isUrgent     Boolean       @default(false)
+  requiredDate DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 

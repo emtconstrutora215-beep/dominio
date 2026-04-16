@@ -4,23 +4,78 @@ import { TRPCError } from '@trpc/server';
 
 export const purchasingRouter = router({
   // ---- 1. PURCHASE REQUESTS ----
-  getRequests: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.purchaseRequest.findMany({
-      where: { companyId: ctx.companyId! },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        requester: { select: { name: true } },
-        approver: { select: { name: true } },
-        project: { select: { name: true } },
-        items: true,
+  getRequests: protectedProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      status: z.string().optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      projectId: z.string().optional(),
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const where: any = { companyId: ctx.companyId! };
+
+      if (input?.status && input.status !== 'ALL') {
+        where.status = input.status;
       }
+
+      if (input?.projectId) {
+        where.projectId = input.projectId;
+      }
+
+      if (input?.search) {
+        where.OR = [
+          { notes: { contains: input.search, mode: 'insensitive' } },
+          { project: { name: { contains: input.search, mode: 'insensitive' } } },
+          { requester: { name: { contains: input.search, mode: 'insensitive' } } },
+        ];
+      }
+
+      if (input?.startDate || input?.endDate) {
+        where.createdAt = {};
+        if (input.startDate) where.createdAt.gte = new Date(input.startDate);
+        if (input.endDate) where.createdAt.lte = new Date(input.endDate);
+      }
+
+      return ctx.prisma.purchaseRequest.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          requester: { select: { id: true, name: true, email: true } },
+          approver: { select: { name: true } },
+          project: { select: { id: true, name: true, code: true } },
+          items: true,
+          quotes: {
+            include: {
+              order: {
+                select: { id: true, number: true }
+              }
+            }
+          }
+        }
+      });
+    }),
+
+  getNextRequestNumber: protectedProcedure.query(async ({ ctx }) => {
+    const requests = await ctx.prisma.purchaseRequest.findMany({
+      where: { companyId: ctx.companyId! },
+      select: { number: true }
     });
+    
+    const numbers = requests
+      .map((r: any) => parseInt(r.number || "0"))
+      .filter((n: number) => !isNaN(n));
+      
+    const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+    return (maxNumber + 1).toString();
   }),
 
   createRequest: protectedProcedure
     .input(z.object({
       projectId: z.string(),
       notes: z.string().optional(),
+      isUrgent: z.boolean().optional(),
+      requiredDate: z.string().optional(),
       items: z.array(z.object({
         description: z.string(),
         unit: z.string(),
@@ -29,13 +84,27 @@ export const purchasingRouter = router({
       }))
     }))
     .mutation(async ({ ctx, input }) => {
+      // Auto-calculate Request Number
+      const requests = await ctx.prisma.purchaseRequest.findMany({
+        where: { companyId: ctx.companyId! },
+        select: { number: true }
+      });
+      const numbers = requests
+        .map((r: any) => parseInt(r.number || "0"))
+        .filter((n: number) => !isNaN(n));
+      const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextNumber = (maxNumber + 1).toString();
+
       return ctx.prisma.purchaseRequest.create({
         data: {
+          number: nextNumber,
           projectId: input.projectId,
           requesterId: ctx.user.id,
           companyId: ctx.companyId!,
           status: 'PENDING_APPROVAL',
           notes: input.notes,
+          isUrgent: input.isUrgent || false,
+          requiredDate: input.requiredDate ? new Date(input.requiredDate) : null,
           items: {
             create: input.items
           }

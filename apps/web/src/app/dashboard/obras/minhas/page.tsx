@@ -8,7 +8,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Search, ChevronLeft, ChevronRight, HardHat, Eye } from "lucide-react";
+import { Loader2, Plus, Search, ChevronLeft, ChevronRight, HardHat, Eye, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 
 const getStatusBadge = (status: string) => {
@@ -31,12 +32,30 @@ const getStatusBadge = (status: string) => {
 export default function MinhasObrasPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const utils = trpc.useUtils();
 
   const { data, isLoading } = trpc.projects.list.useQuery({
     page,
     perPage: 10,
     search: search.length >= 2 ? search : undefined
   });
+
+  const deleteMutation = trpc.projects.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Obra excluída com sucesso!");
+      utils.projects.list.invalidate();
+    },
+    onError: (err) => {
+      toast.error(err.message || "Erro ao excluir obra.");
+    }
+  });
+
+  const handleDelete = (e: React.MouseEvent, id: string, name: string) => {
+    e.stopPropagation();
+    if (window.confirm(`Tem certeza que deseja excluir a obra "${name}"? Esta ação não pode ser desfeita.`)) {
+      deleteMutation.mutate({ id });
+    }
+  };
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
@@ -80,6 +99,7 @@ export default function MinhasObrasPage() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Visível Para</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -117,11 +137,22 @@ export default function MinhasObrasPage() {
                       <TableCell>
                         {getStatusBadge(project.status)}
                       </TableCell>
-                      <TableCell>
+                       <TableCell>
                         <div className="flex items-center gap-1.5 text-xs text-slate-500">
                           <Eye className="w-3.5 h-3.5" />
                           {visibilityText}
                         </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                          onClick={(e) => handleDelete(e, project.id, project.name)}
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
