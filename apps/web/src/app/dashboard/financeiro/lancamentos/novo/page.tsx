@@ -263,8 +263,10 @@ export default function NovoLancamentoPage() {
                 <Select value={form.purchaseOrderId} onValueChange={v => setForm({...form, purchaseOrderId: v})}>
                   <SelectTrigger className="h-8 text-[11px] bg-white border-slate-300"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
-                    {options?.purchaseOrders.map(po => (
-                      <SelectItem key={po.id} value={po.id}>{po.number} - R$ {po.totalValue.toFixed(2)}</SelectItem>
+                    {options?.purchaseOrders.map((po: any) => (
+                      <SelectItem key={po.id} value={po.id}>
+                        {po.number} - R$ {(po.quote.suppliers[0]?.totalPrice || 0).toFixed(2)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

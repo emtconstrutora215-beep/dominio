@@ -40,11 +40,23 @@ export const financialRouter = router({
       ctx.prisma.contact.findMany({ where: { companyId: ctx.companyId }, select: { id: true, name: true, document: true } }),
       ctx.prisma.bankAccount.findMany({ where: { companyId: ctx.companyId }, select: { id: true, name: true, currentBalance: true } }),
       ctx.prisma.purchaseOrder.findMany({ 
-        where: { companyId: ctx.companyId, status: 'APPROVED' }, 
-        select: { id: true, number: true, totalValue: true, description: true } 
+        where: { 
+          quote: { request: { companyId: ctx.companyId } },
+          status: { in: ['ISSUED', 'AWAITING_RECEIPT', 'PARTIALLY_RECEIVED', 'RECEIVED'] }
+        }, 
+        include: { 
+          quote: { 
+            include: { 
+              suppliers: { 
+                where: { isWinner: true },
+                select: { totalPrice: true }
+              } 
+            } 
+          } 
+        } 
       }),
       ctx.prisma.goodsReceipt.findMany({ 
-        where: { purchaseOrder: { companyId: ctx.companyId } }, 
+        where: { purchaseOrder: { quote: { request: { companyId: ctx.companyId } } } }, 
         select: { id: true, createdAt: true, purchaseOrder: { select: { number: true } } } 
       }),
       ctx.prisma.contract.findMany({ 
