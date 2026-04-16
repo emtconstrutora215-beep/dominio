@@ -774,7 +774,7 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
                                       )}
 
                                       <Button 
-                                         disabled={subtotalWon === 0 || generateOrderMutation.isLoading}
+                                         disabled={subtotalWon === 0 || generateOrderMutation.isPending}
                                          className="w-full h-14 rounded-2xl bg-[#F07B2B] hover:bg-[#F07B2B]/90 text-white font-black uppercase tracking-widest text-xs shadow-lg shadow-orange-900/20 group gap-2"
                                          onClick={() => {
                                             if (quoteId) {
@@ -791,7 +791,7 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
                                             }
                                          }}
                                       >
-                                         {generateOrderMutation.isLoading ? (
+                                         {generateOrderMutation.isPending ? (
                                             <Loader2 className="w-4 h-4 animate-spin" />
                                          ) : (
                                             <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
