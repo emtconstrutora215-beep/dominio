@@ -68,6 +68,9 @@ import { ProjectStageSelectorDialog } from "./ProjectStageSelectorDialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+const TAB_STYLE = "h-12 border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent rounded-none px-2 font-black text-slate-400 data-[state=active]:text-slate-900 transition-all uppercase tracking-[0.2em] text-[10px]";
+const FIELD_LABEL = "text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1";
+
 const formSchema = z.object({
   supplierId: z.string().min(1, "Selecione um fornecedor"),
   freight: z.coerce.number().min(0),
@@ -329,10 +332,10 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
              <div className="max-w-[1700px] mx-auto">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-fit">
                   <TabsList className="h-12 bg-transparent p-0 gap-8">
-                    <TabsTrigger value="itens" className="tab-style">Itens</TabsTrigger>
-                    <TabsTrigger value="informações" className="tab-style">Informações</TabsTrigger>
-                    <TabsTrigger value="resumo" className="tab-style">Resumo da Compra</TabsTrigger>
-                    <TabsTrigger value="arquivos" className="tab-style">Arquivos</TabsTrigger>
+                    <TabsTrigger value="itens" className={TAB_STYLE}>Itens</TabsTrigger>
+                    <TabsTrigger value="informações" className={TAB_STYLE}>Informações</TabsTrigger>
+                    <TabsTrigger value="resumo" className={TAB_STYLE}>Resumo da Compra</TabsTrigger>
+                    <TabsTrigger value="arquivos" className={TAB_STYLE}>Arquivos</TabsTrigger>
                   </TabsList>
                 </Tabs>
              </div>
@@ -447,7 +450,7 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
                         <SectionCard icon={<Truck className="w-4 h-4 text-orange-500" />} title="LOGÍSTICA & ENTREGA" bgColor="bg-orange-50">
                            <FormField control={form.control} name="deliveryDays" render={({ field }) => (
                               <FormItem className="space-y-1.5">
-                                 <FormLabel className="field-label">Prazo de Entrega (dias):</FormLabel>
+                                 <FormLabel className={FIELD_LABEL}>Prazo de Entrega (dias):</FormLabel>
                                  <Input type="number" {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
                               </FormItem>
                            )} />
@@ -457,13 +460,13 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
                               <div className="grid grid-cols-2 gap-4">
                                  <FormField control={form.control} name="paymentTerms" render={({ field }) => (
                                     <FormItem className="space-y-1.5">
-                                       <FormLabel className="field-label">Condição de Pagamento:</FormLabel>
+                                       <FormLabel className={FIELD_LABEL}>Condição de Pagamento:</FormLabel>
                                        <Input {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
                                     </FormItem>
                                  )} />
                                  <FormField control={form.control} name="firstDueDate" render={({ field }) => (
                                     <FormItem className="space-y-1.5">
-                                       <FormLabel className="field-label">1º Vencimento:</FormLabel>
+                                       <FormLabel className={FIELD_LABEL}>1º Vencimento:</FormLabel>
                                        <Input type="date" {...field} className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
                                     </FormItem>
                                  )} />
@@ -475,7 +478,7 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
                                     name="billingType"
                                     render={({ field }) => (
                                       <FormItem className="space-y-1.5">
-                                        <FormLabel className="field-label">Faturamento:</FormLabel>
+                                        <FormLabel className={FIELD_LABEL}>Faturamento:</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isBlocked}>
                                           <FormControl>
                                             <SelectTrigger className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl">
@@ -499,7 +502,7 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
                                       name="billingManualName"
                                       render={({ field }) => (
                                         <FormItem className="space-y-1.5">
-                                          <FormLabel className="field-label">Nome Manual:</FormLabel>
+                                          <FormLabel className={FIELD_LABEL}>Nome Manual:</FormLabel>
                                           <FormControl>
                                             <Input {...field} placeholder="Digite o nome..." className="h-11 bg-slate-50 border-slate-200 font-bold rounded-xl" />
                                           </FormControl>
@@ -573,11 +576,6 @@ export function OrderForm({ initialData, mode }: OrderFormProps) {
           title="Buscar no Catálogo" type="INPUT"
         />
       )}
-
-      <style jsx global>{`
-        .tab-style { @apply h-12 border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:bg-transparent rounded-none px-2 font-black text-slate-400 data-[state=active]:text-slate-900 transition-all uppercase tracking-[0.2em] text-[10px]; }
-        .field-label { @apply text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1; }
-      `}</style>
     </div>
   );
 }
