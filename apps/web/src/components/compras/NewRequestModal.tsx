@@ -44,7 +44,7 @@ const formSchema = z.object({
   projectId: z.string().min(1, "Selecione um centro de custo"),
   title: z.string().min(1, "O título é obrigatório"),
   requiredDate: z.string().min(1, "A data é obrigatória"),
-  isUrgent: z.boolean().default(false),
+  isUrgent: z.boolean(),
 });
 
 interface NewRequestModalProps {
