@@ -24,7 +24,6 @@ import {
   ChevronDown,
   Calendar,
   DollarSign,
-  Sitemap,
   History,
   CheckCircle2,
   XCircle,
