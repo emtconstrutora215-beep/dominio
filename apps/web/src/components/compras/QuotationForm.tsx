@@ -142,6 +142,7 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
   const [isSupplierDialogOpen, setIsSupplierDialogOpen] = useState(false);
   const [supplierSearch, setSupplierSearch] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [quoteId, setQuoteId] = useState<string | null>(null);
 
   const { data: catalogItems } = trpc.catalogItem.list.useQuery({ search: searchTerm }, { enabled: showAddItemDialog });
   const { data: availableSuppliers } = trpc.contact.list.useQuery({ 
@@ -227,6 +228,7 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
 
       const quote = existingData.quotes[0];
       if (quote) {
+        setQuoteId(quote.id);
         setQuoteSuppliers(quote.suppliers.map(s => ({
           id: s.id,
           name: s.supplierName,
@@ -274,16 +276,18 @@ export default function QuotationForm({ mode, requestId }: QuotationFormProps) {
   }, [mode, existingData, requests, form]);
 
   const createMutation = trpc.purchasing.createStandaloneQuote.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Cotação gravada!");
+      if (data?.quotes?.[0]?.id) setQuoteId(data.quotes[0].id);
       router.push("/dashboard/compras/cotacoes");
     },
     onError: (err) => toast.error(err.message)
   });
 
   const updateMutation = trpc.purchasing.updateQuotation.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast.success("Cotação atualizada!");
+      if (data?.id) setQuoteId(data.id);
       utils.purchasing.getRequestWithQuote.invalidate({ requestId });
       router.push("/dashboard/compras/cotacoes");
     },
