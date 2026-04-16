@@ -460,70 +460,88 @@ export const purchasingRouter = router({
   generateOrder: protectedProcedure
     .input(z.object({
       quoteId: z.string(),
+      billingType: z.enum(['COMPANY', 'CLIENT', 'DIRECT', 'MANUAL']).default('COMPANY'),
+      billingManualName: z.string().optional(),
       installments: z.number().min(1).default(1),
       firstDueDate: z.string(), // ISO date
       category: z.string().default('Materiais'),
     }))
     .mutation(async ({ ctx, input }) => {
-      // 1. Fetch winning supplier & evaluate threshold
-      const quote = await ctx.prisma.quote.findUnique({
-        where: { id: input.quoteId },
-        include: { 
-          suppliers: { where: { isWinner: true } }, 
-          request: true 
+      return ctx.prisma.$transaction(async (tx: any) => {
+        // 1. Fetch winning supplier & evaluate threshold
+        const quote = await tx.quote.findUnique({
+          where: { id: input.quoteId },
+          include: { 
+            suppliers: { where: { isWinner: true } }, 
+            request: true 
+          }
+        });
+
+        if (!quote || quote.suppliers.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nenhum fornecedor vencedor selecionado nesta cotação.' });
         }
-      });
 
-      if (!quote || quote.suppliers.length === 0) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Nenhum fornecedor vencedor selecionado nesta cotação.' });
-      }
-
-      const winner = quote.suppliers[0];
-      const totalAmount = winner.totalPrice + winner.freight;
-      
-      const company = await ctx.prisma.company.findUnique({ where: { id: ctx.companyId! } });
-      const threshold = company?.approvalThreshold || 5000;
-
-      if (ctx.role === 'ENGINEER' && totalAmount > threshold) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: `Valor da ordem (R$ ${totalAmount}) excede o seu limite (R$ ${threshold}). Necessita que um Administrador gere a ordem.` });
-      }
-
-      if (ctx.role === 'FIELD') {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas Engenheiros ou Administradores podem gerar Ordens de Compra.' });
-      }
-
-      // 2. Create Order
-      const order = await ctx.prisma.purchaseOrder.create({
-        data: {
-          quoteId: quote.id,
-          status: 'AWAITING_RECEIPT',
-        }
-      });
-
-      // 3. Generate Installments (Accounts Payable logic)
-      const installmentAmount = totalAmount / input.installments;
-      const firstDate = new Date(input.firstDueDate);
-
-      const entries = Array.from({ length: input.installments }).map((_: any, idx: number) => {
-        const dueDate = new Date(firstDate);
-        dueDate.setMonth(dueDate.getMonth() + idx);
+        const winner = quote.suppliers[0];
+        const totalAmount = winner.totalPrice + winner.freight;
         
-        return {
-          type: 'EXPENSE' as const,
-          category: input.category,
-          description: `Parcela ${idx + 1}/${input.installments} - ${winner.supplierName} (Ped #${order.id.slice(-6).toUpperCase()})`,
-          amount: parseFloat(installmentAmount.toFixed(2)),
-          dueDate,
-          companyId: ctx.companyId!,
-          purchaseOrderId: order.id
-        };
-      });
+        const company = await tx.company.findUnique({ where: { id: ctx.companyId! } });
+        const threshold = company?.approvalThreshold || 5000;
 
-      await ctx.prisma.financialEntry.createMany({
-        data: entries
-      });
+        if (ctx.role === 'ENGINEER' && totalAmount > threshold) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: `Valor da ordem (R$ ${totalAmount}) excede o seu limite (R$ ${threshold}). Necessita que um Administrador gere a ordem.` });
+        }
 
-      return order;
+        if (ctx.role === 'FIELD') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas Engenheiros ou Administradores podem gerar Ordens de Compra.' });
+        }
+
+        // 0. Auto-calculate Order Number
+        const orders = await tx.purchaseOrder.findMany({
+          where: { quote: { request: { companyId: ctx.companyId! } } },
+          select: { number: true }
+        });
+        const numbers = orders
+          .map((o: any) => parseInt(o.number || "0"))
+          .filter((n: number) => !isNaN(n));
+        const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+        const nextNumber = (maxNumber + 1).toString();
+
+        // 2. Create Order
+        const order = await tx.purchaseOrder.create({
+          data: {
+            quoteId: quote.id,
+            number: nextNumber,
+            status: 'AWAITING_RECEIPT',
+            billingType: input.billingType,
+            billingManualName: input.billingManualName,
+          }
+        });
+
+        // 3. Generate Installments (Accounts Payable logic)
+        const installmentAmount = totalAmount / input.installments;
+        const firstDate = new Date(input.firstDueDate);
+
+        const entries = Array.from({ length: input.installments }).map((_: any, idx: number) => {
+          const dueDate = new Date(firstDate);
+          dueDate.setMonth(dueDate.getMonth() + idx);
+          
+          return {
+            type: 'EXPENSE' as const,
+            category: input.category,
+            description: `Parcela ${idx + 1}/${input.installments} - ${winner.supplierName} (Ped #${order.id.slice(-6).toUpperCase()})`,
+            amount: parseFloat(installmentAmount.toFixed(2)),
+            dueDate,
+            companyId: ctx.companyId!,
+            purchaseOrderId: order.id
+          };
+        });
+
+        await tx.financialEntry.createMany({
+          data: entries
+        });
+
+        return order;
+      });
     }),
 
   // ---- 4. GOODS RECEIPTS (RECEBIMENTO FÍSICO) ----
