@@ -105,7 +105,7 @@ const items = [
       { title: "Recebimentos", url: "/dashboard/financeiro/recebimentos" },
       { title: "Pagamentos", url: "/dashboard/financeiro/pagamentos" },
       { title: "Lançamentos", url: "/dashboard/financeiro/lancamentos" },
-      { title: "Contas Bancárias", url: "/dashboard/financeiro/contas" },
+      { title: "Contas Bancárias", url: "/dashboard/financeiro/bancos" },
       { title: "Fluxo de Caixa", url: "/dashboard/financeiro/fluxo" },
       { title: "Resultados", url: "/dashboard/financeiro/resultados" },
     ],

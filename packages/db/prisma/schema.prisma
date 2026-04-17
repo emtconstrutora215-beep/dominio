@@ -131,6 +131,11 @@ enum FinancialStatus {
   PAID
 }
 
+enum TransferStatus {
+  PENDING
+  PAID
+}
+
 model Company {
   id                  String   @id @default(uuid())
   name                String
@@ -150,6 +155,7 @@ model Company {
   compositions     Composition[]
   purchaseRequests PurchaseRequest[]
   stockAssets      StockAsset[]
+  bankTransfers    BankTransfer[]
 }
 
 model User {
@@ -179,6 +185,7 @@ model User {
   projectsLead       Project[]         @relation("ProjectTechLead")
   projectsManaged    Project[]         @relation("ProjectManager")
   approvedOrders       PurchaseOrder[] @relation("OrderApproverRelation")
+  visibleBankAccounts  BankAccount[]   @relation("BankAccountVisibility")
 }
 
 model Project {
@@ -481,6 +488,10 @@ model BankAccount {
   accountNumber  String?
   initialBalance Float    @default(0)
   currentBalance Float    @default(0)
+  isActive       Boolean  @default(true)
+  ownerType      String   @default("EMPRESA")
+  isLocked       Boolean  @default(false)
+  initialDate    DateTime @default(now())
   companyId      String
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -489,12 +500,37 @@ model BankAccount {
   transactions       BankTransaction[]
   defaultForProjects Project[]
   financialEntries   FinancialEntry[]
+  allowedUsers       User[]            @relation("BankAccountVisibility")
+  transfersSent      BankTransfer[]    @relation("TransferSource")
+  transfersReceived  BankTransfer[]    @relation("TransferDestination")
+}
+
+model BankTransfer {
+  id                String         @id @default(uuid())
+  description       String
+  amount            Float
+  date              DateTime
+  status            TransferStatus @default(PENDING)
+  
+  fromAccountId     String
+  fromAccount       BankAccount    @relation("TransferSource", fields: [fromAccountId], references: [id])
+  toAccountId       String
+  toAccount         BankAccount    @relation("TransferDestination", fields: [toAccountId], references: [id])
+  
+  fromTransactionId String?        @unique
+  toTransactionId   String?        @unique
+  
+  companyId         String
+  company           Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 }
 
 model BankTransaction {
   id            String        @id @default(uuid())
   bankAccountId String
-  fitId         String        @unique // OFX Transaction ID to avoid duplicates
+  fitId         String?       @unique // OFX Transaction ID to avoid duplicates
   description   String
   amount        Float
   type          FinancialType

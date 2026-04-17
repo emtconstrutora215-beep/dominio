@@ -6,10 +6,65 @@ import ofxParser from 'node-ofx-parser';
 import { differenceInDays } from 'date-fns';
 
 export const bankRouter = router({
-  getAccounts: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.bankAccount.findMany({
+  getAccounts: protectedProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      isActive: z.boolean().optional(),
+      ownerType: z.string().optional()
+    }).optional())
+    .query(async ({ ctx, input }) => {
+      const where: any = { companyId: ctx.companyId };
+      
+      // Visibility Check: If not ADMIN, only show if user is in allowedUsers
+      if (ctx.user.role !== 'ADMIN') {
+        where.allowedUsers = {
+          some: { id: ctx.user.id }
+        };
+      }
+
+      if (input?.search) {
+        where.OR = [
+          { name: { contains: input.search, mode: "insensitive" } },
+          { accountNumber: { contains: input.search, mode: "insensitive" } },
+          { agency: { contains: input.search, mode: "insensitive" } },
+        ];
+      }
+
+      if (input?.isActive !== undefined) {
+        where.isActive = input.isActive;
+      }
+
+      if (input?.ownerType && input.ownerType !== "Todos os proprietários") {
+        where.ownerType = input.ownerType.toUpperCase();
+      }
+
+      const accounts = await ctx.prisma.bankAccount.findMany({
+        where,
+        include: {
+          transactions: {
+            select: { amount: true, type: true }
+          },
+          allowedUsers: { select: { id: true, name: true } }
+        },
+        orderBy: { name: 'asc' }
+      });
+
+      return accounts.map(acc => {
+        const calculatedBalance = acc.transactions.reduce((sum, tx) => {
+          return tx.type === 'INCOME' ? sum + tx.amount : sum - tx.amount;
+        }, acc.initialBalance);
+        
+        return {
+          ...acc,
+          currentBalance: calculatedBalance
+        };
+      });
+    }),
+
+  getVisibleUsers: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.user.findMany({
       where: { companyId: ctx.companyId },
-      orderBy: { name: 'asc' }
+      select: { id: true, name: true, email: true }
     });
   }),
 
@@ -18,14 +73,22 @@ export const bankRouter = router({
       name: z.string().min(1),
       agency: z.string().optional(),
       accountNumber: z.string().optional(),
-      initialBalance: z.number().default(0)
+      initialBalance: z.number().default(0),
+      initialDate: z.string().optional(),
+      ownerType: z.string().default("EMPRESA"),
+      allowedUserIds: z.array(z.string()).optional()
     }))
     .mutation(async ({ ctx, input }) => {
+      const { allowedUserIds, initialDate, ...data } = input;
       return ctx.prisma.bankAccount.create({
         data: {
-          ...input,
+          ...data,
+          initialDate: initialDate ? new Date(initialDate) : new Date(),
           companyId: ctx.companyId,
-          currentBalance: input.initialBalance
+          currentBalance: input.initialBalance,
+          allowedUsers: allowedUserIds ? {
+            connect: allowedUserIds.map(id => ({ id }))
+          } : undefined
         }
       });
     }),
@@ -216,5 +279,181 @@ export const bankRouter = router({
       }
       
       return { success: true, count: linked };
+    }),
+
+  toggleLock: protectedProcedure
+    .input(z.object({ id: z.string(), isLocked: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.bankAccount.update({
+        where: { id: input.id, companyId: ctx.companyId },
+        data: { isLocked: input.isLocked }
+      });
+    }),
+
+  toggleActive: protectedProcedure
+    .input(z.object({ id: z.string(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.bankAccount.update({
+        where: { id: input.id, companyId: ctx.companyId },
+        data: { isActive: input.isActive }
+      });
+    }),
+
+  // TRANSFERS
+  getTransfers: protectedProcedure
+    .input(z.object({
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      search: z.string().optional(),
+      status: z.enum(['PENDING', 'PAID', 'ALL']).optional().default('ALL')
+    }))
+    .query(async ({ ctx, input }) => {
+      const where: any = { companyId: ctx.companyId };
+
+      if (input.startDate && input.endDate) {
+        where.date = {
+          gte: new Date(input.startDate),
+          lte: new Date(input.endDate)
+        };
+      }
+
+      if (input.search) {
+        where.description = { contains: input.search, mode: 'insensitive' };
+      }
+
+      if (input.status === 'PAID') where.status = 'PAID';
+      if (input.status === 'PENDING') where.status = 'PENDING';
+
+      return ctx.prisma.bankTransfer.findMany({
+        where,
+        include: {
+          fromAccount: { select: { name: true } },
+          toAccount: { select: { name: true } }
+        },
+        orderBy: { date: 'desc' }
+      });
+    }),
+
+  createTransfer: protectedProcedure
+    .input(z.object({
+      description: z.string().min(1),
+      amount: z.number().positive(),
+      date: z.string(),
+      fromAccountId: z.string(),
+      toAccountId: z.string(),
+      status: z.enum(['PENDING', 'PAID']).default('PAID')
+    }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.fromAccountId === input.toAccountId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Contas de origem e destino devem ser diferentes.' });
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        let fromTxId: string | undefined;
+        let toTxId: string | undefined;
+
+        if (input.status === 'PAID') {
+          const fromTx = await tx.bankTransaction.create({
+            data: {
+              bankAccountId: input.fromAccountId,
+              description: `Transferência para: ${input.description}`,
+              amount: input.amount,
+              type: 'EXPENSE',
+              date: new Date(input.date),
+              isReconciled: true
+            }
+          });
+          fromTxId = fromTx.id;
+
+          const toTx = await tx.bankTransaction.create({
+            data: {
+              bankAccountId: input.toAccountId,
+              description: `Transferência de: ${input.description}`,
+              amount: input.amount,
+              type: 'INCOME',
+              date: new Date(input.date),
+              isReconciled: true
+            }
+          });
+          toTxId = toTx.id;
+        }
+
+        return tx.bankTransfer.create({
+          data: {
+            description: input.description,
+            amount: input.amount,
+            date: new Date(input.date),
+            status: input.status,
+            fromAccountId: input.fromAccountId,
+            toAccountId: input.toAccountId,
+            fromTransactionId: fromTxId,
+            toTransactionId: toTxId,
+            companyId: ctx.companyId,
+          }
+        });
+      });
+    }),
+
+  confirmTransfer: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const transfer = await ctx.prisma.bankTransfer.findUnique({
+        where: { id: input.id, companyId: ctx.companyId }
+      });
+
+      if (!transfer || transfer.status === 'PAID') return transfer;
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const fromTx = await tx.bankTransaction.create({
+          data: {
+            bankAccountId: transfer.fromAccountId,
+            description: `Transferência para: ${transfer.description}`,
+            amount: transfer.amount,
+            type: 'EXPENSE',
+            date: transfer.date,
+            isReconciled: true
+          }
+        });
+
+        const toTx = await tx.bankTransaction.create({
+          data: {
+            bankAccountId: transfer.toAccountId,
+            description: `Transferência de: ${transfer.description}`,
+            amount: transfer.amount,
+            type: 'INCOME',
+            date: transfer.date,
+            isReconciled: true
+          }
+        });
+
+        return tx.bankTransfer.update({
+          where: { id: input.id },
+          data: {
+            status: 'PAID',
+            fromTransactionId: fromTx.id,
+            toTransactionId: toTx.id
+          }
+        });
+      });
+    }),
+
+  deleteTransfer: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const transfer = await ctx.prisma.bankTransfer.findUnique({
+        where: { id: input.id, companyId: ctx.companyId }
+      });
+
+      if (!transfer) throw new TRPCError({ code: 'NOT_FOUND', message: 'Transferência não encontrada.' });
+
+      return ctx.prisma.$transaction(async (tx) => {
+        if (transfer.fromTransactionId) {
+          await tx.bankTransaction.delete({ where: { id: transfer.fromTransactionId } });
+        }
+        if (transfer.toTransactionId) {
+          await tx.bankTransaction.delete({ where: { id: transfer.toTransactionId } });
+        }
+        return tx.bankTransfer.delete({ where: { id: input.id } });
+      });
     })
 });

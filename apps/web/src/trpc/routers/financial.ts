@@ -107,6 +107,18 @@ export const financialRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { splits, ...data } = input;
       
+      if (input.bankAccountId) {
+        const bank = await ctx.prisma.bankAccount.findUnique({
+          where: { id: input.bankAccountId }
+        });
+        if (bank?.isLocked) {
+          throw new TRPCError({ 
+            code: 'FORBIDDEN', 
+            message: 'Esta conta bancária está bloqueada para novas movimentações.' 
+          });
+        }
+      }
+
       const entry = await ctx.prisma.financialEntry.create({
         data: {
           ...data,
@@ -170,9 +182,76 @@ export const financialRouter = router({
             include: {
               project: { select: { id: true, name: true } }
             }
-          }
+          },
+          purchaseOrder: { select: { number: true } }
         },
         orderBy: { competencyDate: 'desc' }
+      });
+    }),
+
+  getPaymentSummary: protectedProcedure.query(async ({ ctx }) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const in7Days = new Date(today);
+    in7Days.setDate(today.getDate() + 7);
+    
+    const in30Days = new Date(today);
+    in30Days.setDate(today.getDate() + 30);
+
+    const entries = await ctx.prisma.financialEntry.findMany({
+      where: { 
+        companyId: ctx.companyId,
+        type: 'EXPENSE',
+        status: { in: ['PENDING', 'PARTIALLY_PAID'] }
+      },
+      select: { amount: true, dueDate: true }
+    });
+
+    const summary = {
+      today: 0,
+      sevenDays: 0,
+      thirtyDays: 0
+    };
+
+    entries.forEach(e => {
+      const dueDate = new Date(e.dueDate);
+      dueDate.setHours(0,0,0,0);
+
+      if (dueDate.getTime() === today.getTime()) {
+        summary.today += e.amount;
+      }
+      
+      if (dueDate >= today && dueDate <= in7Days) {
+        summary.sevenDays += e.amount;
+      }
+      
+      if (dueDate >= today && dueDate <= in30Days) {
+        summary.thirtyDays += e.amount;
+      }
+    });
+
+    return summary;
+  }),
+
+  statusToggle: protectedProcedure
+    .input(z.object({ entryId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const entry = await ctx.prisma.financialEntry.findUnique({
+        where: { id: input.entryId }
+      });
+
+      if (!entry) throw new TRPCError({ code: 'NOT_FOUND', message: 'Lançamento não encontrado' });
+
+      const newStatus = entry.status === 'PAID' ? 'PENDING' : 'PAID';
+      const paidDate = newStatus === 'PAID' ? new Date() : null;
+
+      return ctx.prisma.financialEntry.update({
+        where: { id: input.entryId },
+        data: { 
+          status: newStatus as any,
+          paidDate
+        }
       });
     }),
 
