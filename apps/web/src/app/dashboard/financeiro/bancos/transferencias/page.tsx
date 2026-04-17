@@ -547,7 +547,7 @@ export default function BankTransfersPage() {
       </Dialog>
 
       {/* CSS for print */}
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body * {
             visibility: hidden;
@@ -565,7 +565,7 @@ export default function BankTransfersPage() {
             display: none !important;
           }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
