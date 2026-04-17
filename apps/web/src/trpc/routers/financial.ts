@@ -178,9 +178,11 @@ export const financialRouter = router({
         where,
         include: {
           contact: { select: { id: true, name: true } },
+          bankAccount: { select: { id: true, name: true } },
           splits: {
             include: {
-              project: { select: { id: true, name: true } }
+              project: { select: { id: true, name: true } },
+              projectStage: { select: { id: true, name: true } }
             }
           },
           purchaseOrder: { select: { number: true } }
