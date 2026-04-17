@@ -376,5 +376,225 @@ export const financialRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.financialEntrySplit.delete({ where: { id: input.id } });
+    }),
+
+  getDetailedCashFlow: protectedProcedure
+    .input(z.object({
+      startDate: z.string(),
+      endDate: z.string(),
+      viewType: z.enum(['DAILY', 'MONTHLY']),
+      projectId: z.string().optional(), // Centro de Custo = Obra specific
+      ownerType: z.string().optional(), // Proprietario (EMPRESA/CLIENTE)
+      bankAccountId: z.string().optional(),
+      includeInitialBalance: z.boolean().default(true)
+    }))
+    .query(async ({ ctx, input }) => {
+      const gte = new Date(input.startDate);
+      const lte = new Date(input.endDate);
+
+      // 1. Get Bank Accounts
+      const bankWhere: any = { companyId: ctx.companyId };
+      if (input.bankAccountId) bankWhere.id = input.bankAccountId;
+      if (input.ownerType) bankWhere.ownerType = input.ownerType;
+      
+      const bankAccounts = await ctx.prisma.bankAccount.findMany({ where: bankWhere });
+      const initialBankBalances = bankAccounts.reduce((acc, b) => acc + b.initialBalance, 0);
+
+      // 2. Calculate Saldo Inicial (Transactions before startDate)
+      const prevEntriesWhere: any = {
+        companyId: ctx.companyId,
+        status: 'PAID',
+        paidDate: { lt: gte }
+      };
+      if (input.projectId) {
+        prevEntriesWhere.splits = { some: { projectId: input.projectId } };
+      }
+      if (input.bankAccountId) {
+        prevEntriesWhere.bankAccountId = input.bankAccountId;
+      }
+      if (input.ownerType) {
+        prevEntriesWhere.bankAccount = { ownerType: input.ownerType };
+      }
+
+      const prevEntries = await ctx.prisma.financialEntry.aggregate({
+        where: prevEntriesWhere,
+        _sum: { amount: true }
+      });
+      // Important: prevEntries sum needs to be split by type
+      const prevIncome = await ctx.prisma.financialEntry.aggregate({
+        where: { ...prevEntriesWhere, type: 'INCOME' },
+        _sum: { amount: true }
+      });
+      const prevExpense = await ctx.prisma.financialEntry.aggregate({
+        where: { ...prevEntriesWhere, type: 'EXPENSE' },
+        _sum: { amount: true }
+      });
+
+      // 3. Bank Transfers before startDate
+      const prevTransfersOut = await ctx.prisma.bankTransfer.aggregate({
+        where: { companyId: ctx.companyId, status: 'PAID', date: { lt: gte }, fromAccountId: input.bankAccountId || undefined },
+        _sum: { amount: true }
+      });
+      const prevTransfersIn = await ctx.prisma.bankTransfer.aggregate({
+        where: { companyId: ctx.companyId, status: 'PAID', date: { lt: gte }, toAccountId: input.bankAccountId || undefined },
+        _sum: { amount: true }
+      });
+
+      // Simple starting balance if including initial bank balances
+      let startingBalance = input.includeInitialBalance ? initialBankBalances : 0;
+      startingBalance += (prevIncome._sum.amount || 0) - (prevExpense._sum.amount || 0);
+      // Transfers between accounts don't change TOTAL balance, but if filtered by bankAccount they DO.
+      if (input.bankAccountId) {
+        startingBalance += (prevTransfersIn._sum.amount || 0) - (prevTransfersOut._sum.amount || 0);
+      }
+
+      // 4. Get Current Period Data
+      const currentEntriesWhere: any = {
+        companyId: ctx.companyId,
+        status: 'PAID',
+        paidDate: { gte, lte }
+      };
+      if (input.projectId) {
+        currentEntriesWhere.splits = { some: { projectId: input.projectId } };
+      }
+      if (input.bankAccountId) {
+        currentEntriesWhere.bankAccountId = input.bankAccountId;
+      }
+      if (input.ownerType) {
+        currentEntriesWhere.bankAccount = { ownerType: input.ownerType };
+      }
+
+      const entries = await ctx.prisma.financialEntry.findMany({
+        where: currentEntriesWhere,
+        include: { splits: true }
+      });
+
+      const transfersWhere: any = { companyId: ctx.companyId, status: 'PAID', date: { gte, lte } };
+      const transfers = await ctx.prisma.bankTransfer.findMany({ where: transfersWhere });
+
+      // 5. Categorization Lists
+      const OPERACIONAL_CATEGORIES = ["Prestação de Serviços", "Execução de Obras", "Taxa de Administração", "Venda de Imóveis", "Projetos", "Venda", "Contrato", "Medição", "Licitação", "Aditivo de Contrato", "Venda de Materiais", "Venda de Equipamentos e Instalações"];
+      const FINANCEIRA_CATEGORIES = ["Reembolso", "Juros de Aplicações Financeiras", "Empréstimo", "Aporte de Capital", "Distrato", "Juros", "Multa", "Financiamento Bancário", "Aporte de Investidor", "Juros de Contrato", "Estorno"];
+
+      // 6. Group by Date and Category
+      const periods: Record<string, any> = {};
+      const categoryRows: Record<string, Record<string, number>> = {
+        "Saldo Inicial": {},
+        "Saldo Inicial de Conta": {},
+        "Saldo Transferência": {},
+        "Receitas": {},
+        "Receita Operacional Bruta": {},
+        "Receitas Financeiras": {},
+        "Despesas": {},
+        "Saldo": {}
+      };
+
+      // Fill periods
+      let curr = new Date(gte);
+      while (curr <= lte) {
+        const key = input.viewType === 'DAILY' 
+          ? curr.toISOString().split('T')[0]
+          : `${curr.getFullYear()}-${String(curr.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!periods[key]) periods[key] = { key, income: 0, expense: 0, balance: 0, transfers: 0 };
+        
+        if (input.viewType === 'DAILY') {
+          curr.setDate(curr.getDate() + 1);
+        } else {
+          curr.setMonth(curr.getMonth() + 1);
+          curr.setDate(1);
+        }
+      }
+
+      // Populate Entry data
+      entries.forEach(e => {
+        const d = e.paidDate!;
+        const key = input.viewType === 'DAILY' 
+          ? d.toISOString().split('T')[0]
+          : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!periods[key]) return;
+
+        if (e.type === 'INCOME') {
+          periods[key].income += e.amount;
+          const isOperacional = OPERACIONAL_CATEGORIES.includes(e.category);
+          const group = isOperacional ? "Receita Operacional Bruta" : "Receitas Financeiras";
+          
+          if (!categoryRows[group][key]) categoryRows[group][key] = 0;
+          categoryRows[group][key] += e.amount;
+          
+          if (!categoryRows["Receitas"][key]) categoryRows["Receitas"][key] = 0;
+          categoryRows["Receitas"][key] += e.amount;
+
+          // Nested category rows (dynamic)
+          if (!categoryRows[e.category]) categoryRows[e.category] = {};
+          if (!categoryRows[e.category][key]) categoryRows[e.category][key] = 0;
+          categoryRows[e.category][key] += e.amount;
+        } else {
+          periods[key].expense += e.amount;
+          if (!categoryRows["Despesas"][key]) categoryRows["Despesas"][key] = 0;
+          categoryRows["Despesas"][key] += e.amount;
+
+          // Nested expense rows
+          if (!categoryRows[e.category]) categoryRows[e.category] = {};
+          if (!categoryRows[e.category][key]) categoryRows[e.category][key] = 0;
+          categoryRows[e.category][key] += e.amount;
+        }
+      });
+
+      // Populate Transfer data (only if filtered by bankAccount)
+      if (input.bankAccountId) {
+        transfers.forEach(t => {
+          const d = t.date;
+          const key = input.viewType === 'DAILY' 
+            ? d.toISOString().split('T')[0]
+            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!periods[key]) return;
+
+          if (t.fromAccountId === input.bankAccountId) {
+            periods[key].transfers -= t.amount;
+            if (!categoryRows["Saldo Transferência"][key]) categoryRows["Saldo Transferência"][key] = 0;
+            categoryRows["Saldo Transferência"][key] -= t.amount;
+          }
+          if (t.toAccountId === input.bankAccountId) {
+            periods[key].transfers += t.amount;
+            if (!categoryRows["Saldo Transferência"][key]) categoryRows["Saldo Transferência"][key] = 0;
+            categoryRows["Saldo Transferência"][key] += t.amount;
+          }
+        });
+      }
+
+      // Calculate running balance and Saldo Inicial rows
+      const sortedKeys = Object.keys(periods).sort();
+      let cumulativeBalance = startingBalance;
+      
+      const chartData = sortedKeys.map(key => {
+        const p = periods[key];
+        const startOfPeriod = cumulativeBalance;
+        cumulativeBalance += (p.income - p.expense + p.transfers);
+        
+        categoryRows["Saldo Inicial"][key] = startOfPeriod;
+        categoryRows["Saldo"][key] = cumulativeBalance;
+
+        return {
+          date: key,
+          balance: cumulativeBalance,
+          income: p.income,
+          expense: p.expense
+        };
+      });
+
+      return {
+        periods: sortedKeys,
+        categoryRows,
+        chartData,
+        summary: {
+          startingBalance,
+          finalBalance: cumulativeBalance,
+          totalIncome: Object.values(periods).reduce((acc, p) => acc + p.income, 0),
+          totalExpense: Object.values(periods).reduce((acc, p) => acc + p.expense, 0)
+        }
+      };
     })
 });

@@ -16,11 +16,15 @@ export default async function DashboardLayout({
   }
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className="h-screen overflow-hidden">
       <AppSidebar user={user} />
-      <main className="flex-1 w-full">
-        <SidebarTrigger className="m-4" />
-        {children}
+      <main className="flex-1 w-full h-screen overflow-auto flex flex-col">
+        <div className="shrink-0">
+          <SidebarTrigger className="m-4" />
+        </div>
+        <div className="flex-1 overflow-auto">
+          {children}
+        </div>
       </main>
     </SidebarProvider>
   );

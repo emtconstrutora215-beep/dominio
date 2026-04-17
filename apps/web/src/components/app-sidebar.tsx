@@ -133,7 +133,7 @@ export function AppSidebar({ user }: { user: User }) {
   return (
     <Sidebar 
       collapsible="none"
-      className="bg-[#1862a3] border-none text-white relative min-h-screen h-full py-2 select-none z-40 overflow-visible shadow-lg"
+      className="bg-[#1862a3] border-none text-white sticky top-0 h-screen py-2 select-none z-40 overflow-visible shadow-lg"
       style={{ "--sidebar-width": "85px" } as React.CSSProperties}
     >
       <SidebarContent className="bg-transparent hide-scrollbar overflow-y-auto pb-16 pt-2">
