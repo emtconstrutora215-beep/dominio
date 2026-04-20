@@ -102,7 +102,7 @@ export default function BudgetDetailsPage() {
     return { subtotal, total };
   }, [budgetData]);
 
-  if (loadingProject || loadingBudget) {
+  if (loadingProject || loadingBudget || !project || !budgetData) {
     return (
       <div className="p-12 space-y-8 animate-pulse bg-white min-h-screen">
         <Skeleton className="h-24 w-full rounded-2xl" />
