@@ -84,7 +84,7 @@ export default function MedicaoDetailPage() {
          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-md">
             <h4 className="font-semibold flex items-center gap-2"><XCircle className="w-4 h-4" /> Motivo da Rejeição:</h4>
             <p className="mt-1 text-sm">{measurement.rejectionReason}</p>
-            <p className="mt-2 text-xs text-red-600">Rejeitado por {measurement.rejectedBy?.name || 'Sistema'} em {new Date(measurement.rejectedAt!).toLocaleDateString('pt-BR')}</p>
+            <p className="mt-2 text-xs text-red-600">Rejeitado por {(measurement as any).rejectedBy?.name || 'Sistema'} em {new Date(measurement.rejectedAt!).toLocaleDateString('pt-BR')}</p>
          </div>
       )}
 
