@@ -254,7 +254,15 @@ export const projectsRouter = router({
       showInFinancial: z.boolean().default(true),
       showInInvoicing: z.boolean().default(true),
       showInPurchasing: z.boolean().default(true),
-      proposalStatus: z.enum(['UNDER_ELABORATION', 'SOLD', 'DISCONTINUED']).default('UNDER_ELABORATION'),
+      proposalStatus: z.enum(['UNDER_ELABORATION', 'INITIAL_CONTACT', 'SENT_TO_COMMERCIAL', 'UNDER_REVISION', 'SENT_TO_CLIENT', 'SOLD', 'LOST', 'DISCONTINUED']).default('UNDER_ELABORATION'),
+      proposalDeliveryDate: z.date().optional().nullable(),
+      proposalSaleDate: z.date().optional().nullable(),
+      paymentCondition: z.string().optional().nullable(),
+      measurementPeriod: z.string().optional().nullable(),
+      installmentCount: z.number().optional().nullable(),
+      downPaymentValue: z.number().optional().nullable(),
+      discountValue: z.number().optional().nullable(),
+      discountType: z.string().optional().nullable(),
       totalCost: z.number().default(0)
     }))
     .mutation(async ({ ctx, input }) => {
@@ -363,6 +371,65 @@ export const projectsRouter = router({
         });
 
         return project;
+      });
+    }),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.string(),
+      name: z.string().optional(),
+      type: z.string().optional(),
+      status: z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional(),
+      code: z.string().optional(),
+      clientId: z.string().optional().nullable(),
+      address: z.string().optional().nullable(),
+      budget: z.number().optional().nullable(),
+      
+      totalArea: z.number().optional().nullable(),
+      areaUnit: z.string().optional().nullable(),
+      art: z.string().optional().nullable(),
+      ceiCno: z.string().optional().nullable(),
+      technicalLeadId: z.string().optional().nullable(),
+      projectManagerId: z.string().optional().nullable(),
+
+      cep: z.string().optional(),
+      street: z.string().optional(),
+      number: z.string().optional(),
+      complement: z.string().optional(),
+      neighborhood: z.string().optional(),
+      city: z.string().optional(),
+      state: z.string().optional(),
+
+      paymentResponsibility: z.enum(['COMPANY', 'CLIENT', 'CLIENT_REIMBURSEMENT', 'DIRECT_BILLING']).optional().nullable(),
+      defaultBankAccountId: z.string().optional().nullable(),
+      
+      showInFinancial: z.boolean().optional(),
+      showInInvoicing: z.boolean().optional(),
+      showInPurchasing: z.boolean().optional(),
+      proposalStatus: z.enum(['UNDER_ELABORATION', 'INITIAL_CONTACT', 'SENT_TO_COMMERCIAL', 'UNDER_REVISION', 'SENT_TO_CLIENT', 'SOLD', 'LOST', 'DISCONTINUED']).optional(),
+      
+      // New proposal fields
+      proposalDeliveryDate: z.date().optional().nullable(),
+      proposalSaleDate: z.date().optional().nullable(),
+      paymentCondition: z.string().optional().nullable(),
+      measurementPeriod: z.string().optional().nullable(),
+      installmentCount: z.number().optional().nullable(),
+      downPaymentValue: z.number().optional().nullable(),
+      discountValue: z.number().optional().nullable(),
+      discountType: z.string().optional().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...data } = input;
+      
+      return ctx.prisma.project.update({
+        where: { id, companyId: ctx.companyId },
+        data: {
+          ...data,
+          technicalLeadId: data.technicalLeadId === "" ? null : data.technicalLeadId,
+          projectManagerId: data.projectManagerId === "" ? null : data.projectManagerId,
+          clientId: data.clientId === "" ? null : data.clientId,
+          defaultBankAccountId: data.defaultBankAccountId === "" ? null : data.defaultBankAccountId,
+        } as any
       });
     }),
 

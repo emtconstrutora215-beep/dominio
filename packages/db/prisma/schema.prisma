@@ -34,7 +34,12 @@ enum RequestStatus {
 
 enum ProposalStatus {
   UNDER_ELABORATION
+  INITIAL_CONTACT
+  SENT_TO_COMMERCIAL
+  UNDER_REVISION
+  SENT_TO_CLIENT
   SOLD
+  LOST
   DISCONTINUED
 }
 
@@ -156,6 +161,7 @@ model Company {
   purchaseRequests PurchaseRequest[]
   stockAssets      StockAsset[]
   bankTransfers    BankTransfer[]
+  contractTemplates ContractTemplate[]
 }
 
 model User {
@@ -204,7 +210,15 @@ model Project {
   code           String?
   type           String?
   clientId       String?
-  proposalStatus ProposalStatus @default(UNDER_ELABORATION)
+  proposalStatus       ProposalStatus @default(UNDER_ELABORATION)
+  proposalDeliveryDate DateTime?
+  proposalSaleDate     DateTime?
+  paymentCondition     String?
+  measurementPeriod    String?
+  installmentCount     Int?
+  downPaymentValue     Float?
+  discountValue        Float?         @default(0)
+  discountType         String?        @default("AMOUNT")
   
   technicalLeadId  String?
   technicalLead    User?  @relation("ProjectTechLead", fields: [technicalLeadId], references: [id])
@@ -246,6 +260,7 @@ model Project {
   depots           Depot[]
   financialSplits  FinancialEntrySplit[]
   contracts        Contract[]
+  projectContracts ProjectContract[]
   purchaseRequestItems PurchaseRequestItem[]
 }
 
@@ -750,8 +765,10 @@ model Measurement {
   id              String            @id @default(uuid())
   contractId      String
   status          MeasurementStatus @default(DRAFT)
+  number          Int?              // Sequencial por contrato/obra
+  title           String?           // Título da medição
   grossValue      Float
-  retentionValue  Float
+  retentionValue  Float             // Valor total de retenções (calculado)
   netValue        Float
   notes           String?
   rejectionReason String?
@@ -773,6 +790,10 @@ model Measurement {
   rejectedBy     User?             @relation("MeasurementRejectedBy", fields: [rejectedById], references: [id])
   items          MeasurementItem[]
   financialEntry FinancialEntry?
+  
+  discounts      MeasurementDiscount[]
+  retentions     MeasurementRetentionDetail[]
+  comments       MeasurementComment[]
 }
 
 model MeasurementItem {
@@ -783,6 +804,38 @@ model MeasurementItem {
 
   measurement  Measurement  @relation(fields: [measurementId], references: [id], onDelete: Cascade)
   contractItem ContractItem @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+}
+
+model MeasurementDiscount {
+  id            String  @id @default(uuid())
+  type          String  // adiantamento, compra de materiais, faturamento direto
+  description   String?
+  value         Float
+  percentage    Float?
+  measurementId String
+  
+  measurement   Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+}
+
+model MeasurementRetentionDetail {
+  id            String  @id @default(uuid())
+  type          String
+  description   String?
+  value         Float
+  percentage    Float?
+  measurementId String
+  
+  measurement   Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+}
+
+model MeasurementComment {
+  id            String   @id @default(uuid())
+  text          String
+  userId        String
+  createdAt     DateTime @default(now())
+  measurementId String
+  
+  measurement   Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
 }
 
 // --- NOVO: MÓDULO DE CONTATOS ---
@@ -871,7 +924,9 @@ model CatalogItem {
   benefits     Float? // Valores diretos R$ (vt, vr)
 
   companyId String
-  createdAt DateTime @default(now())
+  isActive     Boolean  @default(true)
+  observations String?  @db.Text
+  createdAt    DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -908,4 +963,28 @@ model CompositionItem {
 
   composition Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
   catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+}
+
+model ContractTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  content   String   @db.Text
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model ProjectContract {
+  id          String   @id @default(uuid())
+  name        String
+  content     String   @db.Text
+  status      String   @default("DRAFT")
+  projectId   String
+  templateId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }

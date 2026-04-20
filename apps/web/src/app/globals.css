@@ -124,3 +124,41 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* React Quill Toolbar Translations */
+.ql-picker.ql-header .ql-picker-label::before,
+.ql-picker.ql-header .ql-picker-item::before {
+  content: 'Normal' !important;
+}
+
+.ql-picker.ql-header .ql-picker-label[data-value="1"]::before,
+.ql-picker.ql-header .ql-picker-item[data-value="1"]::before {
+  content: 'Título 1' !important;
+}
+
+.ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+.ql-picker.ql-header .ql-picker-item[data-value="2"]::before {
+  content: 'Título 2' !important;
+}
+
+.ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+.ql-picker.ql-header .ql-picker-item[data-value="3"]::before {
+  content: 'Título 3' !important;
+}
+
+.ql-picker.ql-size .ql-picker-label::before,
+.ql-picker.ql-size .ql-picker-item::before {
+  content: 'Tamanho' !important;
+}
+
+.ql-tooltip::before {
+  content: "Link:" !important;
+}
+
+.ql-tooltip a.ql-action::after {
+  content: 'Editar' !important;
+}
+
+.ql-tooltip a.ql-remove::before {
+  content: 'Remover' !important;
+}

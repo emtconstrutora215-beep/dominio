@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { 
   Table, 
@@ -29,6 +30,7 @@ import { NewBudgetDialog } from "@/components/orcamentos/NewBudgetDialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function OrcamentosPage() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const limit = 15;
 
@@ -176,7 +178,11 @@ export default function OrcamentosPage() {
                 allItems.map((item: any) => {
                   const propStatus = getProposalStatusConfig(item.proposalStatus || 'UNDER_ELABORATION');
                   return (
-                    <TableRow key={item.id} className="hover:bg-slate-50 border-b border-slate-50 h-14 transition-colors">
+                    <TableRow 
+                      key={item.id} 
+                      className="hover:bg-slate-50 border-b border-slate-50 h-14 transition-colors cursor-pointer"
+                      onClick={() => router.push(`/dashboard/obras/orcamentos/${item.id}/detalhes`)}
+                    >
                       <TableCell className="font-medium text-slate-600 flex items-center gap-2">
                         {item.budget?.isLocked && <Lock className="w-3 h-3 text-slate-400" />}
                         {item.code || String(item.id).substring(0, 4)}

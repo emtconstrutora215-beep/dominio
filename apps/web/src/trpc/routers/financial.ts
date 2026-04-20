@@ -378,6 +378,200 @@ export const financialRouter = router({
       return ctx.prisma.financialEntrySplit.delete({ where: { id: input.id } });
     }),
 
+  getDRE_Report: protectedProcedure
+    .input(z.object({
+      year: z.number(),
+      regime: z.enum(['CASH', 'ACCRUAL']),
+      filterType: z.enum(['all', 'empresa', 'obra']).optional(),
+      projectId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const gte = new Date(input.year, 0, 1);
+      const lte = new Date(input.year, 11, 31, 23, 59, 59);
+
+      const dateField = input.regime === 'CASH' ? 'paidDate' : 'competencyDate';
+      
+      const where: any = {
+        companyId: ctx.companyId,
+        [dateField]: { gte, lte },
+      };
+
+      if (input.regime === 'CASH') {
+        where.status = 'PAID';
+      }
+
+      if (input.filterType === 'obra' && input.projectId && input.projectId !== 'all') {
+        where.splits = {
+          some: { projectId: input.projectId }
+        };
+      } else if (input.filterType === 'empresa') {
+        // Entries specifically for 'Empresa' (General/Admin) usually have no splits 
+        // or splits not linked to a construction project.
+        where.splits = {
+          none: {}
+        };
+      }
+
+      const entries = await ctx.prisma.financialEntry.findMany({
+        where,
+        include: {
+          splits: true
+        }
+      });
+
+      // Structure initialization
+      const months = Array.from({ length: 12 }, (_, i) => i);
+      const rows: Record<string, { label: string; values: number[]; total: number; isHeader?: boolean; isSubtotal?: boolean; isMargin?: boolean; parent?: string }> = {};
+
+      const addRow = (id: string, label: string, options: { isHeader?: boolean; isSubtotal?: boolean; isMargin?: boolean; parent?: string } = {}) => {
+        rows[id] = { label, values: new Array(12).fill(0), total: 0, ...options };
+      };
+
+      // Define Hierarchy based on the model
+      addRow("ROB", "Receita Operacional Bruta", { isHeader: true });
+      addRow("outras_receitas", "Outras receitas", { parent: "ROB" });
+      addRow("prestacao_servicos", "Prestação de Serviços", { parent: "ROB" });
+      addRow("medicao", "Medição", { parent: "ROB" });
+      
+      addRow("impostos", "Impostos");
+      
+      addRow("ROL", "Receita Operacional Líquida", { isSubtotal: true });
+      
+      addRow("despesas_variaveis", "Despesas Variáveis", { isHeader: true });
+      addRow("mao_de_obra", "Mão de Obra", { parent: "despesas_variaveis" });
+      addRow("mao_de_obra_terceirizada", "Mão de Obra Terceirizada", { parent: "despesas_variaveis" });
+      addRow("materiais", "Materials", { parent: "despesas_variaveis" });
+      addRow("equipamentos", "Equipamentos", { parent: "despesas_variaveis" });
+      addRow("outras_despesas", "Outras Despesas", { parent: "despesas_variaveis" });
+      
+      addRow("lucro_bruto", "Lucro Bruto", { isSubtotal: true });
+      addRow("margem_bruta", "Margem Bruta (%)", { isMargin: true });
+      
+      addRow("despesas_operacionais", "Despesas Operacionais", { isHeader: true });
+      addRow("gerais_administrativas", "Gerais e Administrativas", { parent: "despesas_operacionais" });
+      addRow("aluguel_condominio_iptu", "Aluguel, Condomínio e IPTU", { parent: "despesas_operacionais" });
+      addRow("pro_labore", "Pro Labore", { parent: "despesas_operacionais" });
+      
+      addRow("perc_despesas_operacionais", "% Despesas Operacionais", { isMargin: true });
+      
+      addRow("lucro_operacional", "Lucro Operacional", { isSubtotal: true });
+      addRow("margem_operacional", "Margem Operacional (%)", { isMargin: true });
+      
+      addRow("resultado_financeiro", "Resultado Financeiro", { isHeader: true });
+      addRow("descontos", "Descontos de Pagamentos", { parent: "resultado_financeiro" });
+      addRow("despesas_financeiras", "Despesas Financeiras", { parent: "resultado_financeiro" });
+      addRow("juros", "Juros de Pagamentos", { parent: "resultado_financeiro" });
+      
+      addRow("lucro_liquido", "Lucro Líquido", { isSubtotal: true });
+      addRow("margem_liquida", "Margem Líquida (%)", { isMargin: true });
+
+      // Categorization Helper
+      const getRowId = (category: string, type: string) => {
+        const cat = category.toLowerCase();
+        
+        if (type === 'INCOME') {
+          if (cat.includes('medição')) return 'medicao';
+          if (cat.includes('serviço')) return 'prestacao_servicos';
+          return 'outras_receitas';
+        } else {
+          if (cat.includes('imposto')) return 'impostos';
+          if (cat.includes('obra')) return 'mao_de_obra';
+          if (cat.includes('terceirizada')) return 'mao_de_obra_terceirizada';
+          if (cat.includes('material')) return 'materiais';
+          if (cat.includes('equipamento')) return 'equipamentos';
+          
+          if (cat.includes('administrativa') || cat.includes('geral')) return 'gerais_administrativas';
+          if (cat.includes('aluguel') || cat.includes('condomínio') || cat.includes('iptu')) return 'aluguel_condominio_iptu';
+          if (cat.includes('pro labore') || cat.includes('pró-labore')) return 'pro_labore';
+          
+          if (cat.includes('desconto')) return 'descontos';
+          if (cat.includes('financeira')) return 'despesas_financeiras';
+          if (cat.includes('juro')) return 'juros';
+          
+          // Default for expenses
+          if (cat.includes('despesa') && cat.includes('variável')) return 'outras_despesas';
+          return 'outras_despesas';
+        }
+      };
+
+      // Populate data
+      entries.forEach(e => {
+        const date = e[dateField] as Date;
+        const month = date.getMonth();
+        const rowId = getRowId(e.category, e.type);
+        
+        // Handle splits if projectId is selected
+        let amount = e.amount;
+        if (input.projectId && input.projectId !== 'all') {
+          const split = e.splits.find(s => s.projectId === input.projectId);
+          amount = split ? split.amount : 0;
+        }
+
+        if (rows[rowId]) {
+          rows[rowId].values[month] += amount;
+          rows[rowId].total += amount;
+        }
+      });
+
+      // Calculate Subtotals and Headers
+      months.forEach(m => {
+        // ROB
+        rows["ROB"].values[m] = rows["outras_receitas"].values[m] + rows["prestacao_servicos"].values[m] + rows["medicao"].values[m];
+        
+        // ROL
+        rows["ROL"].values[m] = rows["ROB"].values[m] - rows["impostos"].values[m];
+        
+        // Despesas Variáveis
+        rows["despesas_variaveis"].values[m] = rows["mao_de_obra"].values[m] + rows["mao_de_obra_terceirizada"].values[m] + rows["materiais"].values[m] + rows["equipamentos"].values[m] + rows["outras_despesas"].values[m];
+        
+        // Lucro Bruto
+        rows["lucro_bruto"].values[m] = rows["ROL"].values[m] - rows["despesas_variaveis"].values[m];
+        
+        // Margem Bruta
+        rows["margem_bruta"].values[m] = rows["ROL"].values[m] !== 0 ? (rows["lucro_bruto"].values[m] / rows["ROL"].values[m]) * 100 : 0;
+        
+        // Despesas Operacionais Header
+        rows["despesas_operacionais"].values[m] = rows["gerais_administrativas"].values[m] + rows["aluguel_condominio_iptu"].values[m] + rows["pro_labore"].values[m];
+        
+        // % Despesas Operacionais
+        rows["perc_despesas_operacionais"].values[m] = rows["ROL"].values[m] !== 0 ? (rows["despesas_operacionais"].values[m] / rows["ROL"].values[m]) * 100 : 0;
+        
+        // Lucro Operacional
+        rows["lucro_operacional"].values[m] = rows["lucro_bruto"].values[m] - rows["despesas_operacionais"].values[m];
+        
+        // Margem Operacional
+        rows["margem_operacional"].values[m] = rows["ROL"].values[m] !== 0 ? (rows["lucro_operacional"].values[m] / rows["ROL"].values[m]) * 100 : 0;
+        
+        // Resultado Financeiro Header
+        rows["resultado_financeiro"].values[m] = rows["descontos"].values[m] - rows["despesas_financeiras"].values[m] - rows["juros"].values[m];
+        
+        // Lucro Líquido
+        rows["lucro_liquido"].values[m] = rows["lucro_operacional"].values[m] + rows["resultado_financeiro"].values[m];
+        
+        // Margem Líquida
+        rows["margem_liquida"].values[m] = rows["ROL"].values[m] !== 0 ? (rows["lucro_liquido"].values[m] / rows["ROL"].values[m]) * 100 : 0;
+      });
+
+      // Recalculate Totals for subheaders and margins
+      Object.keys(rows).forEach(id => {
+        if (rows[id].isMargin) {
+          const rolTotal = rows["ROL"].total;
+          if (id === "margem_bruta") rows[id].total = rolTotal !== 0 ? (rows["lucro_bruto"].total / rolTotal) * 100 : 0;
+          if (id === "perc_despesas_operacionais") rows[id].total = rolTotal !== 0 ? (rows["despesas_operacionais"].total / rolTotal) * 100 : 0;
+          if (id === "margem_operacional") rows[id].total = rolTotal !== 0 ? (rows["lucro_operacional"].total / rolTotal) * 100 : 0;
+          if (id === "margem_liquida") rows[id].total = rolTotal !== 0 ? (rows["lucro_liquido"].total / rolTotal) * 100 : 0;
+        } else if (rows[id].isHeader || rows[id].isSubtotal) {
+          rows[id].total = rows[id].values.reduce((acc, v) => acc + v, 0);
+        }
+      });
+
+      return {
+        year: input.year,
+        regime: input.regime,
+        rows: Object.entries(rows).map(([id, data]) => ({ id, ...data }))
+      };
+    }),
+
   getDetailedCashFlow: protectedProcedure
     .input(z.object({
       startDate: z.string(),

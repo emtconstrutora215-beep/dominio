@@ -74,8 +74,10 @@ export function BudgetRow({
     <>
       <div 
         className={cn(
-          "group flex items-center border-b border-slate-100 min-h-[50px] transition-colors hover:bg-slate-50/50",
-          level === 0 && "border-t border-slate-200"
+          "group flex items-center border-b border-slate-100 min-h-[48px] transition-colors",
+          item.type === 'STAGE' && "bg-slate-50/80 border-t border-slate-200 border-l-4 border-l-[#1A3C5E]",
+          item.type === 'SUB_STAGE' && "bg-slate-100/40 border-l-4 border-l-slate-400 font-bold",
+          (item.type !== 'STAGE' && item.type !== 'SUB_STAGE') && "hover:bg-slate-50/50"
         )}
       >
         {/* Item # & Collapse */}
@@ -96,24 +98,78 @@ export function BudgetRow({
         </div>
 
         {/* Item (Description) */}
-        <div className="flex-1 flex items-center px-4 overflow-hidden gap-3">
+        <div className="flex-1 flex items-center px-4 overflow-hidden gap-3 group/desc">
           <div className="shrink-0">
-             {item.type === 'STAGE' && <Layers className="w-3.5 h-3.5 text-emerald-500" />}
-             {item.type === 'SUB_STAGE' && <Box className="w-3.5 h-3.5 text-blue-400" />}
+             {item.type === 'STAGE' && <Layers className="w-4 h-4 text-[#1A3C5E]" />}
+             {item.type === 'SUB_STAGE' && <Box className="w-3.5 h-3.5 text-slate-500" />}
              {item.type === 'ITEM' && <Wrench className="w-3.5 h-3.5 text-slate-400" />}
              {item.type === 'COMPOSITION' && <Calculator className="w-3.5 h-3.5 text-emerald-400" />}
              {item.type === 'INPUT' && <Package className="w-3.5 h-3.5 text-orange-400" />}
           </div>
-          <input 
-            className={cn(
-              "w-full bg-transparent border-none focus:ring-0 text-xs py-1",
-              item.type === 'STAGE' ? "font-bold text-[#1A3C5E]" :
-              item.type === 'SUB_STAGE' ? "font-semibold text-slate-700 uppercase tracking-tight" :
-              "font-medium text-slate-600"
+          <div className="flex-1 flex items-center gap-2">
+            <input 
+              className={cn(
+                "w-full bg-transparent border-none focus:ring-0 text-xs py-1",
+                item.type === 'STAGE' ? "font-black text-[#1A3C5E] uppercase tracking-wider" :
+                item.type === 'SUB_STAGE' ? "font-bold text-slate-700 uppercase tracking-tight" :
+                "font-medium text-slate-600"
+              )}
+              defaultValue={item.description}
+              onBlur={(e) => onUpdate(item.id, { description: e.target.value })}
+            />
+
+            {(item.type === 'SUB_STAGE' || item.type === 'STAGE') && (
+              <div className="flex items-center gap-1 opacity-0 group-hover/desc:opacity-100 transition-opacity shrink-0">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => onAddChild(item.id, 'SUB_STAGE')}
+                      >
+                        <Layers className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-[10px] font-bold uppercase">Sub-etapa</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-orange-400 hover:text-orange-600 hover:bg-orange-50"
+                        onClick={() => onAddChild(item.id, 'INPUT')}
+                      >
+                        <Package className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-[10px] font-bold uppercase">Insumo</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 text-slate-400 hover:text-[#1A3C5E] hover:bg-slate-100"
+                        onClick={() => onAddChild(item.id, 'ITEM')}
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Item</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             )}
-            defaultValue={item.description}
-            onBlur={(e) => onUpdate(item.id, { description: e.target.value })}
-          />
+          </div>
         </div>
 
         <div className="w-24 px-2 border-l border-slate-100">
@@ -184,67 +240,6 @@ export function BudgetRow({
 
         {/* Actions */}
         <div className="w-16 px-2 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {item.type === 'ITEM' || item.type === 'SUB_STAGE' || item.type === 'STAGE' ? (
-            <div className="flex gap-1">
-              {item.type === 'SUB_STAGE' && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-7 w-7 text-blue-400 hover:text-blue-600 hover:bg-blue-50"
-                        onClick={() => onAddChild(item.id, 'SUB_STAGE')}
-                      >
-                        <Layers className="w-3.5 h-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-[10px] font-bold uppercase">Adicionar Sub-etapa</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-orange-400 hover:text-orange-600 hover:bg-orange-50"
-                      onClick={() => onAddChild(item.id, 'INPUT')}
-                    >
-                      <Package className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-[10px] font-bold uppercase">Adicionar Insumo</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-7 w-7 text-slate-300 hover:text-[#1A3C5E] hover:bg-slate-100"
-                      onClick={() => onAddChild(item.id, 'ITEM')}
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-[10px] font-bold uppercase">
-                      {item.type === 'ITEM' ? 'Adicionar Sub-item' : 'Adicionar Item'}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          ) : null}
           <Button 
             variant="ghost" 
             size="icon" 

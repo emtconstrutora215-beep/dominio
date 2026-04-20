@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BudgetHeader } from "@/components/orcamentos/BudgetHeader";
 import { BudgetNavigation } from "@/components/orcamentos/BudgetNavigation";
 import { BudgetSpreadsheet } from "@/components/orcamentos/BudgetSpreadsheet";
+import { ProposalTab } from "@/components/orcamentos/ProposalTab";
+import { ContractTab } from "@/components/orcamentos/ContractTab";
+import { ReportsTab } from "@/components/orcamentos/ReportsTab";
 
 // Abas Auxiliares (Poderiam ser componentes separados no futuro)
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -17,7 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save } from "lucide-react";
+import { Save, FileText } from "lucide-react";
 
 export default function BudgetDetailsPage() {
   const { id } = useParams() as { id: string };
@@ -67,6 +70,15 @@ export default function BudgetDetailsPage() {
     onSuccess: () => {
       toast.success("Item removido");
       utils.budget.getProjectBudget.invalidate({ projectId: id });
+    }
+  });
+
+  const updateProject = trpc.projects.update.useMutation({
+    onSuccess: () => {
+      utils.projects.getById.invalidate({ id });
+    },
+    onError: (err) => {
+      toast.error(`Erro ao atualizar projeto: ${err.message}`);
     }
   });
 
@@ -216,11 +228,27 @@ export default function BudgetDetailsPage() {
            </div>
         )}
 
+        {activeTab === "proposta" && (
+          <ProposalTab 
+            project={project} 
+            totals={totals}
+            onUpdate={(data) => updateProject.mutate({ id: project.id, ...data })}
+          />
+        )}
+
+        {activeTab === "contrato" && (
+          <ContractTab projectId={project.id} />
+        )}
+
+        {activeTab === "relatorios" && (
+           <ReportsTab projectId={id} project={project} />
+        )}
+
         {/* placeholder para outras abas */}
-        {["proposta", "contrato", "cronograma", "arquivos", "relatorios"].includes(activeTab) && (
+        {["cronograma", "arquivos"].includes(activeTab) && (
           <Card className="border-2 border-dashed border-slate-200 rounded-xl p-32 text-center bg-white">
              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-8 text-slate-300">
-                <Save className="w-8 h-8" />
+                <FileText className="w-8 h-8" />
              </div>
              <h3 className="text-xl font-bold text-slate-900 tracking-tight">Módulo em Desenvolvimento</h3>
              <p className="text-slate-400 text-sm mt-4 font-semibold uppercase tracking-wider">Funcionalidade em fase de integração.</p>

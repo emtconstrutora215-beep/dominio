@@ -297,5 +297,104 @@ export const budgetRouter = router({
         where: { id: input.id }
       });
     }),
+
+  getBudgetReports: protectedProcedure
+    .input(z.object({ projectId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { projectId } = input;
+
+      // Buscar todos os itens do orçamento com seus tipos de catálogo
+      const budgetItems = await ctx.prisma.budgetItem.findMany({
+        where: { projectStage: { projectId } },
+        include: {
+          catalogItem: true,
+          projectStage: true,
+          children: true,
+        },
+      });
+
+      const projectGroups = await ctx.prisma.projectStage.findMany({
+        where: { projectId },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      // 1. Relatório por Etapa
+      const stageReport = projectGroups.map((stage: any) => {
+        const stageItems = budgetItems.filter((item: any) => item.projectStageId === stage.id);
+        
+        let labor = 0;
+        let material = 0;
+        let equipment = 0;
+        let others = 0;
+
+        // Função recursiva para somar apenas as folhas (insumos)
+        const processItem = (item: any) => {
+          if (item.children && item.children.length > 0) {
+            // Se tem filhos, não somamos o total dele (pois o total dele é a soma dos filhos)
+            // mas processamos os filhos que já estão no nosso budgetItems (flattened)
+            return;
+          }
+
+          const total = item.total || 0;
+          const type = item.catalogItem?.type;
+
+          if (type === 'LABOR') labor += total;
+          else if (type === 'MATERIAL') material += total;
+          else if (type === 'EQUIPMENT') equipment += total;
+          else others += total;
+        };
+
+        stageItems.forEach(processItem);
+
+        const totalCost = labor + material + equipment + others;
+
+        return {
+          id: stage.id,
+          name: stage.name,
+          labor,
+          material,
+          equipment,
+          others,
+          totalCost,
+        };
+      });
+
+      // 2. Curva ABC (apenas insumos/folhas)
+      const allInputs = budgetItems
+        .filter((item: any) => !item.children || item.children.length === 0)
+        .map((item: any) => ({
+          id: item.id,
+          description: item.description,
+          unit: item.unit,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.total,
+          type: item.catalogItem?.type || 'OUTROS',
+          group: item.catalogItem?.typeCategory || 'Geral',
+        }))
+        .sort((a: any, b: any) => b.total - a.total);
+
+      const totalValue = allInputs.reduce((acc: number, item: any) => acc + item.total, 0);
+      let accumulatedAmount = 0;
+
+      const abcCurve = allInputs.map((item: any) => {
+        accumulatedAmount += item.total;
+        const percentage = totalValue > 0 ? (item.total / totalValue) * 100 : 0;
+        const accumulatedPercentage = totalValue > 0 ? (accumulatedAmount / totalValue) * 100 : 0;
+
+        return {
+          ...item,
+          percentage,
+          accumulatedAmount,
+          accumulatedPercentage,
+        };
+      });
+
+      return {
+        stageReport,
+        abcCurve,
+        totalValue,
+      };
+    }),
 });
 

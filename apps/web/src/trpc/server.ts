@@ -16,6 +16,8 @@ import { contactRouter } from './routers/contact';
 import { jobRoleRouter } from './routers/jobRole';
 import { catalogItemRouter } from './routers/catalogItem';
 import { compositionRouter } from './routers/composition';
+import { contractTemplatesRouter } from './routers/contractTemplates';
+import { projectContractsRouter } from './routers/projectContracts';
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -35,6 +37,8 @@ export const appRouter = router({
   jobRole: jobRoleRouter,
   catalogItem: catalogItemRouter,
   composition: compositionRouter,
+  contractTemplates: contractTemplatesRouter,
+  projectContracts: projectContractsRouter,
 });
 
 export type AppRouter = typeof appRouter;

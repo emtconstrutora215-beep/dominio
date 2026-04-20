@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { BudgetRow } from "./BudgetRow";
-import { Layers, Calculator, Info, Check, X, Settings, Plus, Box } from "lucide-react";
+import { Layers, Calculator, Info, Check, X, Settings, Plus, Box, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -312,29 +312,60 @@ export function BudgetSpreadsheet({
                     <div className="flex-1 px-4 flex items-center gap-3">
                         <Input 
                             defaultValue={stage.name}
-                            className="bg-transparent border-none focus-visible:ring-0 text-xs font-bold text-[#1A3C5E] uppercase tracking-wide h-8 p-0"
+                            className="bg-transparent border-none focus-visible:ring-0 text-xs font-black text-[#1A3C5E] uppercase tracking-wider h-8 p-0"
                             onBlur={(e) => onUpdateStage(stage.id, { name: e.target.value })}
                         />
                         <div className="flex items-center gap-1 opacity-0 group-hover/stage:opacity-100 transition-opacity">
-                            <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-7 px-3 text-[10px] font-bold text-slate-500 hover:text-[#1A3C5E] hover:bg-slate-100"
-                                onClick={() => {
-                                  setAddingItemTo({ stageId: stage.id, type: 'SUB_STAGE' });
-                                  setNewItemBdi(stage.bdi || 0);
-                                }}
-                            >
-                                <Plus className="w-3 h-3 mr-1.5" /> Sub-Etapa
-                            </Button>
-                            <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-7 px-3 text-[10px] font-bold text-slate-500 hover:text-[#1A3C5E] hover:bg-slate-100"
-                                onClick={() => handleOpenModal('ITEM', `Novo Item em: ${stage.name}`, stage.id, undefined, true)}
-                            >
-                                <Plus className="w-3 h-3 mr-1.5" /> Item
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-blue-400 hover:text-blue-600 hover:bg-blue-50"
+                                      onClick={() => {
+                                        setAddingItemTo({ stageId: stage.id, type: 'SUB_STAGE' });
+                                        setNewItemBdi(stage.bdi || 0);
+                                      }}
+                                  >
+                                      <Layers className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Sub-etapa</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-orange-400 hover:text-orange-600 hover:bg-orange-50"
+                                      onClick={() => handleOpenModal('INPUT', `Novo Insumo em: ${stage.name}`, stage.id)}
+                                  >
+                                      <Package className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Insumo</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-slate-300 hover:text-[#1A3C5E] hover:bg-slate-100"
+                                      onClick={() => handleOpenModal('ITEM', `Novo Item em: ${stage.name}`, stage.id, undefined, true)}
+                                  >
+                                      <Plus className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Item</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                         </div>
                     </div>
 
