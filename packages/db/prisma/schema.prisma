@@ -185,6 +185,7 @@ model User {
   measurementsCreated  Measurement[] @relation("MeasurementMeasuredBy")
   measurementsApproved Measurement[] @relation("MeasurementApprovedBy")
   measurementsRejected Measurement[] @relation("MeasurementRejectedBy")
+  measurementComments  MeasurementComment[]
 
   contact Contact?
   projectsAccess     Project[]         @relation("ProjectUsers")
@@ -836,6 +837,7 @@ model MeasurementComment {
   measurementId String
   
   measurement   Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id])
 }
 
 // --- NOVO: MÓDULO DE CONTATOS ---

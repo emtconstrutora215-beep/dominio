@@ -132,7 +132,7 @@ export const catalogItemRouter = router({
             });
             if (!collision) break;
             
-            const num = parseInt(finalCode || "0") + 1;
+            const num: number = parseInt(finalCode || "0", 10) + 1;
             finalCode = num.toString().padStart(4, '0');
             attempt++;
             if (attempt > 10) break;
