@@ -282,9 +282,9 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
             <Button 
               type="submit" 
               className="h-11 bg-[#5cb85c] hover:bg-[#4cae4c] text-white font-black uppercase tracking-wider text-[10px] px-10 shadow-lg gap-2"
-              disabled={createMutation.isLoading || updateMutation.isLoading}
+              disabled={createMutation.isPending || updateMutation.isPending}
             >
-              {(createMutation.isLoading || updateMutation.isLoading) ? (
+              {(createMutation.isPending || updateMutation.isPending) ? (
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <Save className="w-4 h-4" />
