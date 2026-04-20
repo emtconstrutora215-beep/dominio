@@ -125,6 +125,7 @@ export const projectsRouter = router({
           stages: {
             include: { budgetItems: true }
           },
+          contracts: true,
           dailyReports: {
             take: 5,
             orderBy: { date: 'desc' }
