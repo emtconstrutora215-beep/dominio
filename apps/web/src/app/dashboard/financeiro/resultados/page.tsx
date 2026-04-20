@@ -257,7 +257,7 @@ export default function ResultadosPage() {
         </div>
       </div>
 
-      <style jsx global>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           .print\:hidden { display: none !important; }
           body { background: white !important; }
@@ -268,7 +268,7 @@ export default function ResultadosPage() {
           .bg-blue-600 { background-color: #f8fafc !important; color: black !important; border-bottom: 2px solid #000 !important; }
           .sticky { position: static !important; }
         }
-      `}</style>
+      ` }} />
     </div>
   );
 }
