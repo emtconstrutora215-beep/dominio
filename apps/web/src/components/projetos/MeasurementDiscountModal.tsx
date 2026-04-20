@@ -33,8 +33,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 const discountFormSchema = z.object({
   type: z.string().min(1, "Selecione o tipo de desconto"),
-  value: z.coerce.number().min(0.01, "O valor deve ser maior que zero"),
-  percentage: z.coerce.number().min(0).max(100).optional(),
+  value: z.number().min(0.01, "O valor deve ser maior que zero"),
+  percentage: z.number().min(0).max(100).optional(),
   description: z.string().optional(),
 });
 
@@ -117,6 +117,7 @@ export function MeasurementDiscountModal({ isOpen, onClose, onSave }: Measuremen
                           placeholder="0,00"
                           className="h-14 bg-white border border-slate-200 rounded-xl pl-11 pr-4 font-bold text-slate-600 focus-visible:ring-1 focus-visible:ring-emerald-500 shadow-sm transition-all"
                           {...field} 
+                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                         />
                       </div>
                     </FormControl>
@@ -138,6 +139,7 @@ export function MeasurementDiscountModal({ isOpen, onClose, onSave }: Measuremen
                           placeholder="0"
                           className="h-14 bg-white border border-slate-200 rounded-xl px-4 font-bold text-slate-600 focus-visible:ring-1 focus-visible:ring-emerald-500 shadow-sm transition-all"
                           {...field} 
+                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">%</span>
                       </div>

@@ -30,7 +30,7 @@ import {
 
 const discountFormSchema = z.object({
   discountType: z.enum(["PERCENTAGE", "AMOUNT"]),
-  discountValue: z.coerce.number().min(0, "O valor deve ser maior ou igual a zero"),
+  discountValue: z.number().min(0, "O valor deve ser maior ou igual a zero"),
 });
 
 interface ProposalDiscountModalProps {
@@ -127,6 +127,7 @@ export function ProposalDiscountModal({
                           placeholder="0,00"
                           className="h-16 bg-white border-2 border-slate-100 rounded-2xl pl-16 pr-6 font-black text-slate-800 text-2xl focus-visible:ring-1 focus-visible:ring-blue-500 shadow-sm transition-all tracking-tighter"
                           {...field} 
+                          onChange={(e) => field.onChange(e.target.value === "" ? 0 : Number(e.target.value))}
                         />
                       </div>
                     </FormControl>
