@@ -178,7 +178,7 @@ export function ContractEditorModal({ isOpen, onClose, documentId }: ContractEdi
            </div>
 
            <div className="flex-1 rounded-3xl border-2 border-slate-100 overflow-hidden flex flex-col min-h-0 bg-slate-50/30">
-              <style jsx global>{`
+              <style dangerouslySetInnerHTML={{ __html: `
                 .quill-container .ql-container {
                   height: 100% !important;
                   flex: 1;
@@ -205,7 +205,7 @@ export function ContractEditorModal({ isOpen, onClose, documentId }: ContractEdi
                    flex: 1;
                    min-height: 0;
                 }
-              `}</style>
+              ` }} />
               <div className="quill-container flex-1 flex flex-col min-h-0">
                  <ReactQuill 
                    value={content}

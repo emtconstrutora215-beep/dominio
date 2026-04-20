@@ -196,7 +196,7 @@ export function ContractTemplateModal({ isOpen, onClose }: ContractTemplateModal
                       </div>
                    </div>
                    <div className="rounded-2xl border-2 border-slate-100 overflow-hidden flex-1 flex flex-col min-h-0 bg-slate-50/30">
-                      <style jsx global>{`
+                       <style dangerouslySetInnerHTML={{ __html: `
                         .quill-container .ql-container {
                           height: 100% !important;
                           flex: 1;
@@ -223,7 +223,7 @@ export function ContractTemplateModal({ isOpen, onClose }: ContractTemplateModal
                            flex: 1;
                            min-height: 0;
                         }
-                      `}</style>
+                      ` }} />
                       <div className="quill-container flex-1 flex flex-col min-h-0">
                          <ReactQuill 
                            value={content}
