@@ -78,6 +78,14 @@ export const catalogItemRouter = router({
     };
   }),
 
+  listAll: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.prisma.catalogItem.findMany({
+        where: { companyId: ctx.companyId!, isActive: true },
+        orderBy: { description: 'asc' },
+      });
+    }),
+
   create: protectedProcedure
     .input(z.object({
       code: z.string().optional(),
