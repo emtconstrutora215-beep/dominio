@@ -870,9 +870,11 @@ export const biRouter = router({
         } 
         else if (item.type === 'COMPOSITION' && item.composition) {
           item.composition.items.forEach(ci => {
-            const entry = getOrAdd(ci.catalogItem.description, ci.catalogItem.type, ci.catalogItem.typeCategory || "-");
-            entry.orcadoQty += item.quantity * ci.quantity;
-            if (ci.catalogItem.unitCost > 0) entry.orcadoUnitPrice = ci.catalogItem.unitCost;
+            if (ci.catalogItem) {
+              const entry = getOrAdd(ci.catalogItem.description, ci.catalogItem.type, ci.catalogItem.typeCategory || "-");
+              entry.orcadoQty += item.quantity * ci.quantity;
+              if (ci.catalogItem.unitCost > 0) entry.orcadoUnitPrice = ci.catalogItem.unitCost;
+            }
           });
         }
       });
@@ -898,9 +900,11 @@ export const biRouter = router({
           if (!mi.budgetItem) return;
           if (mi.budgetItem.type === 'COMPOSITION' && mi.budgetItem.composition) {
             mi.budgetItem.composition.items.forEach(ci => {
-              const entry = getOrAdd(ci.catalogItem.description, ci.catalogItem.type, ci.catalogItem.typeCategory || "-");
-              entry.realizadoQty += mi.quantity * ci.quantity;
-              if (entry.realizadoUnitPrice === 0) entry.realizadoUnitPrice = ci.catalogItem.unitCost;
+              if (ci.catalogItem) {
+                const entry = getOrAdd(ci.catalogItem.description, ci.catalogItem.type, ci.catalogItem.typeCategory || "-");
+                entry.realizadoQty += mi.quantity * ci.quantity;
+                if (entry.realizadoUnitPrice === 0) entry.realizadoUnitPrice = ci.catalogItem.unitCost;
+              }
             });
           } else {
             const entry = getOrAdd(mi.budgetItem.description, mi.budgetItem.type, "-");
@@ -986,12 +990,14 @@ export const biRouter = router({
           stage.budgetItems.forEach(bi => {
             if (bi.type === 'COMPOSITION' && bi.composition) {
               bi.composition.items.forEach(ci => {
-                const cost = bi.quantity * ci.quantity * ci.catalogItem.unitCost;
-                const type = ci.catalogItem.type;
-                if (type === 'LABOR') categories.labor += cost;
-                else if (type === 'MATERIAL') categories.material += cost;
-                else if (type === 'EQUIPMENT') categories.equipment += cost;
-                else categories.others += cost;
+                if (ci.catalogItem) {
+                  const cost = bi.quantity * ci.quantity * ci.catalogItem.unitCost;
+                  const type = ci.catalogItem.type;
+                  if (type === 'LABOR') categories.labor += cost;
+                  else if (type === 'MATERIAL') categories.material += cost;
+                  else if (type === 'EQUIPMENT') categories.equipment += cost;
+                  else categories.others += cost;
+                }
               });
             } else if (bi.type === 'INPUT' || bi.type === 'ITEM') {
               const type = bi.catalogItem?.type || 'MATERIAL';
@@ -1149,12 +1155,14 @@ export const biRouter = router({
           orcadoDespesas += bi.total;
           if (bi.type === 'COMPOSITION' && bi.composition) {
             bi.composition.items.forEach(ci => {
-              const cost = bi.quantity * ci.quantity * ci.catalogItem.unitCost;
-              const type = ci.catalogItem.type;
-              if (type === 'LABOR') orcadoCategories.labor += cost;
-              else if (type === 'MATERIAL') orcadoCategories.material += cost;
-              else if (type === 'EQUIPMENT') orcadoCategories.equipment += cost;
-              else orcadoCategories.others += cost;
+              if (ci.catalogItem) {
+                const cost = bi.quantity * ci.quantity * ci.catalogItem.unitCost;
+                const type = ci.catalogItem.type;
+                if (type === 'LABOR') orcadoCategories.labor += cost;
+                else if (type === 'MATERIAL') orcadoCategories.material += cost;
+                else if (type === 'EQUIPMENT') orcadoCategories.equipment += cost;
+                else orcadoCategories.others += cost;
+              }
             });
           } else {
             const type = bi.catalogItem?.type || 'MATERIAL';
