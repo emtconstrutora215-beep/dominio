@@ -1141,7 +1141,11 @@ export const biRouter = router({
       // 1. Incomes
       const orcadoReceitas = project.budget;
       const realizedReceitas = await prisma.financialEntry.aggregate({
-        where: { projectId, type: 'INCOME', status: 'PAID' },
+        where: { 
+          splits: { some: { projectId } },
+          type: 'INCOME', 
+          status: 'PAID' 
+        },
         _sum: { amount: true }
       });
       const realReceitas = realizedReceitas._sum.amount || 0;
