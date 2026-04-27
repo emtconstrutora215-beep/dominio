@@ -40,31 +40,31 @@ import { InsumoDialog } from "@/components/catalogo/InsumoDialog";
 import { ItemSelectorDialog } from "@/components/catalogo/ItemSelectorDialog";
 
 const compositionSchema = z.object({
-  code: z.string().optional(),
+  code: z.string().nullable(),
   description: z.string().min(1, "A descrição é obrigatória"),
   unit: z.string().min(1, "A unidade é obrigatória"),
-  type: z.string().optional(),
-  base: z.string().optional().default("Própria"),
-  isActive: z.boolean().default(true),
-  detailedDescription: z.string().optional(),
-  bdi: z.number().min(0).default(0),
+  type: z.string().nullable(),
+  base: z.string().nullable(),
+  isActive: z.boolean(),
+  detailedDescription: z.string().nullable(),
+  bdi: z.number().min(0),
   
   // Custos Manuais
-  laborCost: z.number().optional().default(0),
-  materialCost: z.number().optional().default(0),
-  equipmentCost: z.number().optional().default(0),
-  serviceCost: z.number().optional().default(0),
+  laborCost: z.number(),
+  materialCost: z.number(),
+  equipmentCost: z.number(),
+  serviceCost: z.number(),
 
   items: z.array(z.object({
-    catalogItemId: z.string().optional().nullable(),
-    childCompositionId: z.string().optional().nullable(),
+    catalogItemId: z.string().nullable(),
+    childCompositionId: z.string().nullable(),
     quantity: z.number().min(0.000001, "A quantidade deve ser maior que zero"),
     _name: z.string().optional(),
     _code: z.string().optional(),
     _unit: z.string().optional(),
     _unitCost: z.number().optional(),
     _type: z.string().optional(),
-  })).optional().default([])
+  }))
 });
 
 type CompositionFormValues = z.infer<typeof compositionSchema>;
@@ -89,13 +89,13 @@ export default function NovaComposicaoPage() {
   const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<CompositionFormValues>({
     resolver: zodResolver(compositionSchema),
     defaultValues: {
-      code: "",
+      code: null,
       description: "",
       unit: "",
-      type: "",
+      type: null,
       base: "Própria",
       isActive: true,
-      detailedDescription: "",
+      detailedDescription: null,
       bdi: 0,
       laborCost: 0,
       materialCost: 0,
