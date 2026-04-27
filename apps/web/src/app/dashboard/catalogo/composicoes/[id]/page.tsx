@@ -120,16 +120,22 @@ export default function EditarComposicaoPage() {
         materialCost: composition.materialCost || 0,
         equipmentCost: composition.equipmentCost || 0,
         serviceCost: composition.serviceCost || 0,
-        items: composition.items.map(i => ({
-          catalogItemId: i.catalogItemId,
-          childCompositionId: i.childCompositionId,
-          quantity: i.quantity,
-          _name: i.catalogItem?.description || i.childComposition?.description || "",
-          _code: i.catalogItem?.code || i.childComposition?.code || "",
-          _unit: i.catalogItem?.unit || i.childComposition?.unit || "",
-          _unitCost: i.catalogItem?.unitCost || i.childComposition?.computedCost || 0,
-          _type: i.catalogItem?.type || 'COMPOSIÇÃO'
-        }))
+        items: composition.items.map(i => {
+          const childCost = i.childComposition 
+            ? (i.childComposition.laborCost + i.childComposition.materialCost + i.childComposition.equipmentCost + i.childComposition.serviceCost)
+            : 0;
+
+          return {
+            catalogItemId: i.catalogItemId,
+            childCompositionId: i.childCompositionId,
+            quantity: i.quantity,
+            _name: i.catalogItem?.description || i.childComposition?.description || "",
+            _code: i.catalogItem?.code || i.childComposition?.code || "",
+            _unit: i.catalogItem?.unit || i.childComposition?.unit || "",
+            _unitCost: i.catalogItem?.unitCost || childCost,
+            _type: i.catalogItem?.type || 'COMPOSIÇÃO'
+          };
+        })
       });
     }
   }, [composition, reset]);
