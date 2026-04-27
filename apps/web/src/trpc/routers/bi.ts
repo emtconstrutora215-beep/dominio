@@ -735,7 +735,9 @@ export const biRouter = router({
         else if (item.type === 'COMPOSITION' && item.composition) {
           item.composition.items.forEach(ci => {
             const qty = item.quantity * ci.quantity;
-            addOrcado(ci.catalogItem.description, qty, ci.catalogItem.unitCost);
+            if (ci.catalogItem) {
+              addOrcado(ci.catalogItem.description, qty, ci.catalogItem.unitCost);
+            }
           });
         }
       });
