@@ -274,7 +274,12 @@ export const projectsRouter = router({
             },
             contracts: true,
             defaultBankAccount: true,
-            projectContacts: true
+            projectContacts: true,
+            invoicingContact: true,
+            dailyReports: {
+              orderBy: { date: 'desc' },
+              take: 10
+            }
           }
         });
 
