@@ -98,7 +98,7 @@ export default function EditarComposicaoPage() {
   });
 
   const { register, control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<CompositionFormValues>({
-    resolver: zodResolver(compositionSchema),
+    resolver: zodResolver(compositionSchema) as any,
     defaultValues: { 
       id: "",
       code: null,
