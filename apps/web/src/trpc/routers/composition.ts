@@ -213,7 +213,7 @@ export const compositionRouter = router({
               where: { code: finalCode, companyId: ctx.companyId! }
             });
             if (!collision) break;
-            const num = parseInt(finalCode || "0", 10) + 1;
+            const num: number = parseInt(finalCode || "0", 10) + 1;
             finalCode = num.toString().padStart(4, '0');
             attempt++;
             if (attempt > 20) break;
