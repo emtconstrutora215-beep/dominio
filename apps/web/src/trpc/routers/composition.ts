@@ -177,7 +177,13 @@ export const compositionRouter = router({
       if (!finalCode) {
         // Gerador de código automático para Composições
         const lastComp = await ctx.prisma.composition.findFirst({
-          where: { companyId: ctx.companyId!, code: { notIn: [null, ""] } },
+          where: { 
+            companyId: ctx.companyId!, 
+            AND: [
+              { code: { not: null } },
+              { code: { not: "" } }
+            ]
+          },
           orderBy: { code: 'desc' },
         });
 
