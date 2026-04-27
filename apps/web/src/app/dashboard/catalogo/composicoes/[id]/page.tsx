@@ -45,16 +45,16 @@ const compositionSchema = z.object({
   description: z.string().min(1, "A descrição é obrigatória"),
   unit: z.string().min(1, "A unidade é obrigatória"),
   type: z.string().optional().nullable(),
-  base: z.string().optional().nullable().default("Própria"),
+  base: z.string().nullable().default("Própria"),
   isActive: z.boolean().default(true),
   detailedDescription: z.string().optional().nullable(),
   bdi: z.number().min(0).default(0),
 
   // Custos Manuais
-  laborCost: z.number().optional().default(0),
-  materialCost: z.number().optional().default(0),
-  equipmentCost: z.number().optional().default(0),
-  serviceCost: z.number().optional().default(0),
+  laborCost: z.number().default(0),
+  materialCost: z.number().default(0),
+  equipmentCost: z.number().default(0),
+  serviceCost: z.number().default(0),
 
   items: z.array(z.object({
     catalogItemId: z.string().optional().nullable(),
@@ -65,7 +65,7 @@ const compositionSchema = z.object({
     _unit: z.string().optional(),
     _unitCost: z.number().optional(),
     _type: z.string().optional(),
-  })).optional().default([])
+  })).default([])
 });
 
 type CompositionFormValues = z.infer<typeof compositionSchema>;
