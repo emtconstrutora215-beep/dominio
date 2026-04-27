@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { 
   Dialog, DialogContent, DialogHeader, DialogTitle 
 } from "@/components/ui/dialog";
@@ -20,6 +20,9 @@ import {
 import { trpc } from "@/trpc/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { UnitSelect } from "@/components/ui/unit-select";
+import { BaseSelect } from "@/components/ui/base-select";
+import { InsumoCategorySelect } from "@/components/ui/insumo-category-select";
 
 type InsumoDialogProps = {
   isOpen: boolean;
@@ -38,6 +41,9 @@ type InsumoFormData = {
   typeCategory?: string;
   base?: string;
   unitCost: number;
+  salary?: number;
+  charges?: number;
+  benefits?: number;
   isActive: boolean;
   observations?: string;
 };
@@ -46,10 +52,13 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
   const [activeStatus, setActiveStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
   const utils = trpc.useUtils();
 
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<InsumoFormData>({
+  const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<InsumoFormData>({
     defaultValues: { 
       type: 'MATERIAL', 
       unitCost: 0, 
+      salary: 0,
+      charges: 0,
+      benefits: 0,
       isActive: true,
       base: 'Própria'
     }
@@ -66,6 +75,9 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
         typeCategory: item.typeCategory || "",
         base: item.base || "Própria",
         unitCost: item.unitCost,
+        salary: item.salary || 0,
+        charges: item.charges || 0,
+        benefits: item.benefits || 0,
         isActive: item.isActive,
         observations: item.observations || ""
       });
@@ -78,6 +90,9 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
         unit: "", 
         type: 'MATERIAL', 
         unitCost: 0, 
+        salary: 0,
+        charges: 0,
+        benefits: 0,
         isActive: true,
         base: 'Própria',
         observations: ""
@@ -85,6 +100,19 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
       setActiveStatus("ACTIVE");
     }
   }, [item, reset, isOpen]);
+  
+  const watchedType = watch("type");
+  const watchedSalary = watch("salary") || 0;
+  const watchedCharges = watch("charges") || 0;
+  const watchedBenefits = watch("benefits") || 0;
+
+  // Cálculo automático do unitCost para Mão de Obra
+  useEffect(() => {
+    if (watchedType === 'LABOR') {
+      const total = (Number(watchedSalary) * (1 + (Number(watchedCharges) / 100))) + Number(watchedBenefits);
+      setValue("unitCost", Number(total.toFixed(2)));
+    }
+  }, [watchedType, watchedSalary, watchedCharges, watchedBenefits, setValue]);
 
   const createMutation = trpc.catalogItem.create.useMutation({
     onSuccess: () => {
@@ -146,7 +174,7 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[850px] p-0 border-none shadow-2xl overflow-hidden rounded-xl">
+      <DialogContent showCloseButton={false} className="sm:max-w-[1200px] w-[95vw] p-0 border-none shadow-2xl overflow-hidden rounded-xl">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col bg-white">
           {/* Header customizado como no print */}
           <div className="bg-[#f8fafc] border-b px-6 py-4 flex items-center justify-between">
@@ -221,7 +249,19 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
               </div>
               <div className="col-span-2 space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Unidade: <span className="text-red-500">*</span></label>
-                <Input {...register("unit", { required: true })} className="h-10 border-2 border-slate-100 font-bold text-xs uppercase" />
+                <Controller
+                  name="unit"
+                  control={control}
+                  rules={{ required: true }}
+                  render={({ field }) => (
+                    <UnitSelect 
+                      value={field.value} 
+                      onChange={field.onChange} 
+                      placeholder="Und"
+                    />
+                  )}
+                />
+                {errors.unit && <p className="text-[9px] text-red-500">Obrigatório</p>}
               </div>
             </div>
 
@@ -229,19 +269,64 @@ export function InsumoDialog({ isOpen, onOpenChange, item, onSuccess, filterOpti
             <div className="grid grid-cols-12 gap-4 items-end">
               <div className="col-span-3 space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Tipo (Categoria):</label>
-                <Input {...register("typeCategory")} className="h-10 border-2 border-slate-100 font-bold text-xs uppercase" placeholder="Escavadeira, etc" />
+                <Controller
+                  name="typeCategory"
+                  control={control}
+                  render={({ field }) => (
+                    <InsumoCategorySelect value={field.value} onChange={field.onChange} placeholder="Selecione..." />
+                  )}
+                />
               </div>
               <div className="col-span-3 space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Base: <span className="text-red-500">*</span></label>
-                <Input {...register("base")} className="h-10 border-2 border-slate-100 font-bold text-xs uppercase" />
+                <Controller
+                  name="base"
+                  control={control}
+                  render={({ field }) => (
+                    <BaseSelect value={field.value} onChange={field.onChange} placeholder="Selecione..." />
+                  )}
+                />
               </div>
-              <div className="col-span-3 space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400">Custo Unitário:</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
-                  <Input type="number" step="0.01" {...register("unitCost")} className="h-10 pl-8 border-2 border-slate-100 font-bold text-xs" />
+              {watchedType === 'LABOR' ? (
+                <>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Salário:</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
+                      <Input type="number" step="0.01" {...register("salary", { valueAsNumber: true })} className="h-10 pl-8 border-2 border-slate-100 font-bold text-xs" />
+                    </div>
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Encargos (%):</label>
+                    <div className="relative">
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">%</span>
+                      <Input type="number" step="0.01" {...register("charges", { valueAsNumber: true })} className="h-10 pr-8 border-2 border-slate-100 font-bold text-xs" />
+                    </div>
+                  </div>
+                  <div className="col-span-2 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Benefícios:</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
+                      <Input type="number" step="0.01" {...register("benefits", { valueAsNumber: true })} className="h-10 pl-8 border-2 border-slate-100 font-bold text-xs" />
+                    </div>
+                  </div>
+                  <div className="col-span-3 space-y-1.5">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Total:</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 font-mono">R$</span>
+                      <Input type="number" step="0.01" value={watch("unitCost")} readOnly className="h-10 pl-8 border-2 border-slate-50 bg-slate-50 font-black text-xs text-blue-600 font-mono cursor-not-allowed" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-6 space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400">Custo Unitário:</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">R$</span>
+                    <Input type="number" step="0.01" {...register("unitCost", { valueAsNumber: true })} className="h-10 pl-8 border-2 border-slate-100 font-bold text-xs" />
+                  </div>
                 </div>
-              </div>
+              )}
               <div className="col-span-3 space-y-1.5">
                 <label className="text-[10px] font-black uppercase text-slate-400">Status:</label>
                 <Tabs value={activeStatus} onValueChange={v => setActiveStatus(v as any)} className="w-full">

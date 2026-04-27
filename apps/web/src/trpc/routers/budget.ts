@@ -5,7 +5,10 @@ import { z } from 'zod';
 async function rollupBudgetItem(prisma: any, itemId: string) {
   const item = await prisma.budgetItem.findUnique({
     where: { id: itemId },
-    include: { children: true }
+    include: { 
+      children: true,
+      projectStage: true 
+    }
   });
 
   if (!item) return;
@@ -26,7 +29,87 @@ async function rollupBudgetItem(prisma: any, itemId: string) {
   // Recurse para o pai
   if (item.parentId) {
     await rollupBudgetItem(prisma, item.parentId);
+  } else {
+    // Se chegou na raiz de uma etapa, recalcula o total da etapa e do projeto
+    await recalculateProjectTotals(prisma, item.projectStage.projectId);
   }
+}
+
+// Helper para recalcular totais do projeto (Preço e Custo)
+export async function recalculateProjectTotals(prisma: any, projectId: string) {
+  const stages = await prisma.projectStage.findMany({
+    where: { projectId },
+    include: {
+      budgetItems: {
+        where: { parentId: null }
+      }
+    }
+  });
+
+  // Buscar configuração de orçamento para BDI Global
+  const budget = await prisma.budget.findUnique({
+    where: { projectId }
+  });
+  const globalBdi = budget?.bdi || 0;
+
+  let projectTotalCost = 0;
+  let projectTotalPrice = 0;
+
+  for (const stage of stages) {
+
+    const stageCost = stage.budgetItems.reduce((acc: number, item: any) => acc + item.total, 0);
+    const stagePrice = stage.budgetItems.reduce((acc: number, item: any) => {
+      // Hierarquia: BDI do Item -> BDI da Etapa -> BDI Global
+      const bdi = item.bdi || stage.bdi || globalBdi;
+      return acc + (item.total * (1 + bdi / 100));
+    }, 0);
+
+    // Atualiza o stage
+    await prisma.projectStage.update({
+      where: { id: stage.id },
+      data: { plannedCost: stageCost }
+    });
+
+    projectTotalCost += stageCost;
+    projectTotalPrice += stagePrice;
+  }
+
+
+  // Buscar info do projeto para aplicar desconto global
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { discountValue: true, discountType: true }
+  });
+
+  let finalBudget = projectTotalPrice;
+  if (project?.discountValue) {
+    if (project.discountType === 'PERCENTAGE') {
+      finalBudget = projectTotalPrice * (1 - project.discountValue / 100);
+    } else {
+      finalBudget = Math.max(0, projectTotalPrice - project.discountValue);
+    }
+  }
+
+  // Atualiza o projeto
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      totalCost: projectTotalCost,
+      budget: finalBudget
+    }
+  });
+
+  // Garantir que existe um registro Budget para visibilidade na lista
+  await prisma.budget.upsert({
+    where: { projectId },
+    update: {},
+    create: {
+      projectId,
+      bdi: 0
+    }
+  });
+
+
 }
 
 export const budgetRouter = router({
@@ -45,11 +128,17 @@ export const budgetRouter = router({
       bdi: z.number()
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.budget.upsert({
+      const result = await ctx.prisma.budget.upsert({
         where: { projectId: input.projectId },
         update: { bdi: input.bdi },
         create: { projectId: input.projectId, bdi: input.bdi }
       });
+
+      // Recalcular totais para refletir o novo BDI na lista de obras
+      await recalculateProjectTotals(ctx.prisma, input.projectId);
+
+      return result;
+
     }),
 
   getProjectBudget: protectedProcedure
@@ -131,7 +220,7 @@ export const budgetRouter = router({
       bdi: z.number().optional()
     }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.projectStage.create({
+      const stage = await ctx.prisma.projectStage.create({
         data: {
           projectId: input.projectId,
           name: input.name,
@@ -141,6 +230,8 @@ export const budgetRouter = router({
           percentageComplete: 0
         }
       });
+      await recalculateProjectTotals(ctx.prisma, input.projectId);
+      return stage;
     }),
 
   updateStage: protectedProcedure
@@ -167,6 +258,7 @@ export const budgetRouter = router({
         });
       }
 
+      await recalculateProjectTotals(ctx.prisma, updated.projectId);
       return updated;
     }),
 
@@ -201,11 +293,14 @@ export const budgetRouter = router({
           order: input.order,
           catalogItemId: input.catalogItemId,
           compositionId: input.compositionId,
-        }
+        },
+        include: { projectStage: true }
       });
 
       if (newItem.parentId) {
         await rollupBudgetItem(ctx.prisma, newItem.parentId);
+      } else {
+        await recalculateProjectTotals(ctx.prisma, newItem.projectStage.projectId);
       }
 
       return newItem;
@@ -245,7 +340,8 @@ export const budgetRouter = router({
         data: {
           ...data,
           propagateBdi: undefined // Remove do prisma update
-        } as any
+        } as any,
+        include: { projectStage: true }
       });
 
       if (input.propagateBdi && typeof input.bdi === 'number') {
@@ -269,6 +365,8 @@ export const budgetRouter = router({
       // Se o total mudou ou o item tem pai, precisamos rodar o rollup
       if (updated.parentId) {
         await rollupBudgetItem(ctx.prisma, updated.parentId);
+      } else {
+        await recalculateProjectTotals(ctx.prisma, updated.projectStage.projectId);
       }
 
       return updated;
@@ -277,7 +375,10 @@ export const budgetRouter = router({
   deleteBudgetItem: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const item = await ctx.prisma.budgetItem.findUnique({ where: { id: input.id } });
+      const item = await ctx.prisma.budgetItem.findUnique({ 
+        where: { id: input.id },
+        include: { projectStage: true }
+      });
       
       const deleted = await ctx.prisma.budgetItem.delete({
         where: { id: input.id }
@@ -285,6 +386,8 @@ export const budgetRouter = router({
 
       if (item?.parentId) {
         await rollupBudgetItem(ctx.prisma, item.parentId);
+      } else if (item) {
+        await recalculateProjectTotals(ctx.prisma, item.projectStage.projectId);
       }
 
       return deleted;
@@ -293,9 +396,19 @@ export const budgetRouter = router({
   deleteStage: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.projectStage.delete({
+      const stage = await ctx.prisma.projectStage.findUnique({
         where: { id: input.id }
       });
+      
+      const deleted = await ctx.prisma.projectStage.delete({
+        where: { id: input.id }
+      });
+
+      if (stage) {
+        await recalculateProjectTotals(ctx.prisma, stage.projectId);
+      }
+
+      return deleted;
     }),
 
   getBudgetReports: protectedProcedure

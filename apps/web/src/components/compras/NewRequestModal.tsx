@@ -10,7 +10,8 @@ import {
   Calendar as CalendarIcon, 
   Info, 
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  Thermometer
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -80,9 +81,9 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] p-10 rounded-[2rem] border-none shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-        <DialogHeader className="mb-6">
-          <DialogTitle className="text-[28px] font-extrabold text-[#1A73E8] tracking-tight">
+      <DialogContent className="sm:max-w-[800px] p-8 bg-white rounded-lg border-none shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+        <DialogHeader className="mb-4">
+          <DialogTitle className="text-3xl font-bold text-[#2079D2] tracking-tight">
             Nova Solicitação
           </DialogTitle>
         </DialogHeader>
@@ -93,23 +94,12 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
               control={form.control}
               name="projectId"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <FormLabel className="text-[15px] font-bold text-slate-600">
+                <FormItem className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <FormLabel className="text-base font-medium text-slate-500">
                       Selecione um centro de custo <span className="text-rose-500">*</span>
                     </FormLabel>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="bg-slate-100 p-1 rounded-full cursor-help">
-                            <Info className="w-3 h-3 text-slate-400" />
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          Escolha a obra para a qual os itens serão destinados.
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                    <Info className="w-4 h-4 text-slate-400" />
                   </div>
                   <FormControl>
                     <ProjectSelector
@@ -127,12 +117,12 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
               control={form.control}
               name="title"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel className="text-[15px] font-bold text-slate-600">Título da solicitação</FormLabel>
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="text-base font-medium text-slate-500">Descrição da solicitação</FormLabel>
                   <FormControl>
                     <Input 
                       placeholder="Ex: Materiais brutos" 
-                      className="h-14 bg-white border-slate-200 rounded-xl px-4 font-medium text-slate-600 shadow-sm focus-visible:ring-[#1A73E8]/20 focus-visible:border-[#1A73E8]"
+                      className="h-10 bg-white border-slate-300 rounded-sm px-3 text-sm text-slate-600 focus-visible:ring-0 focus-visible:border-slate-400"
                       {...field} 
                     />
                   </FormControl>
@@ -145,25 +135,18 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
               control={form.control}
               name="requiredDate"
               render={({ field }) => (
-                <FormItem className="space-y-3">
-                  <FormLabel className="text-[15px] font-bold text-slate-600">Espera receber os itens quando?</FormLabel>
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="text-base font-medium text-slate-500">Espera receber os itens quando?</FormLabel>
                   <FormControl>
-                    <div className="relative">
+                    <div className="flex bg-white border border-slate-300 rounded-sm overflow-hidden h-10 group focus-within:border-slate-400">
                       <Input 
                         type="date"
-                        className="h-14 bg-white border-slate-200 rounded-xl px-4 font-medium text-slate-600 shadow-sm focus-visible:ring-[#1A73E8]/20 focus-visible:border-[#1A73E8] appearance-none"
+                        className="flex-1 border-none h-full px-3 text-sm text-slate-600 focus-visible:ring-0"
                         {...field} 
                       />
-                      <CalendarIcon 
-                        className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#1A3C5E] cursor-pointer pointer-events-auto" 
-                        onClick={(e) => {
-                          const container = e.currentTarget.parentElement;
-                          const input = container?.querySelector('input');
-                          if (input && 'showPicker' in input) {
-                            (input as any).showPicker();
-                          }
-                        }}
-                      />
+                      <div className="bg-slate-50 border-l border-slate-300 px-3 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors">
+                        <CalendarIcon className="w-4 h-4 text-slate-500" />
+                      </div>
                     </div>
                   </FormControl>
                   <FormMessage />
@@ -175,36 +158,30 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
               control={form.control}
               name="isUrgent"
               render={({ field }) => (
-                <FormItem className="space-y-4">
-                  <FormLabel className="text-[15px] font-bold text-slate-600">Prioridade</FormLabel>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-0 border border-slate-200 rounded-lg overflow-hidden h-12 shadow-sm">
-                      <div className={`px-4 h-full flex items-center justify-center text-xs font-bold transition-colors ${!field.value ? "bg-slate-50 text-slate-400" : "bg-white text-slate-300"}`}>
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="text-base font-medium text-slate-500">Prioridade</FormLabel>
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="flex bg-white border border-slate-300 rounded-sm overflow-hidden h-10 cursor-pointer select-none"
+                      onClick={() => field.onChange(!field.value)}
+                    >
+                      <div className={`px-4 h-full flex items-center justify-center text-sm transition-colors ${!field.value ? "bg-slate-100 text-slate-600" : "bg-white text-slate-400"}`}>
                         Não
                       </div>
-                      <FormControl>
-                        <div className="px-2 bg-slate-50 h-full flex items-center">
-                           <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                            className="data-[state=checked]:bg-rose-500"
-                          />
-                        </div>
-                      </FormControl>
-                      <div className={`px-4 h-full flex items-center justify-center text-xs font-bold transition-colors ${field.value ? "bg-rose-50 text-rose-600" : "bg-white text-slate-300"}`}>
-                        Urgente
+                      <div className={`px-4 h-full flex items-center justify-center text-sm transition-colors ${field.value ? "bg-rose-100 text-rose-600 font-medium" : "bg-white text-slate-400"}`}>
+                        Sim
                       </div>
                     </div>
-                    <AlertCircle className={`w-5 h-5 ${field.value ? "text-rose-500 animate-pulse" : "text-slate-300"}`} />
+                    <Thermometer className={`w-4 h-4 ${field.value ? "text-rose-500" : "text-slate-400"}`} />
                   </div>
                 </FormItem>
               )}
             />
 
-            <DialogFooter className="flex flex-row justify-start gap-4 pt-4">
+            <div className="flex items-center gap-3 pt-4">
               <Button 
                 type="submit" 
-                className="bg-[#A1D99B] hover:bg-[#8fc988] text-white font-extrabold px-12 h-14 rounded-xl text-lg transition-all active:scale-95 shadow-lg shadow-emerald-100/50"
+                className="bg-[#92D193] hover:bg-[#82bd83] text-white font-medium px-8 h-10 rounded-sm shadow-none"
               >
                 Começar
               </Button>
@@ -212,11 +189,11 @@ export function NewRequestModal({ isOpen, onClose, projects }: NewRequestModalPr
                 type="button" 
                 variant="outline" 
                 onClick={onClose}
-                className="border-slate-200 text-slate-500 font-bold px-12 h-14 rounded-xl text-lg hover:bg-slate-50"
+                className="border-slate-300 text-slate-600 font-medium px-8 h-10 rounded-sm hover:bg-slate-50"
               >
                 Cancelar
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </Form>
       </DialogContent>

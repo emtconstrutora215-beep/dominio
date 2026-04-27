@@ -37,7 +37,8 @@ export default function OrcamentosPage() {
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = trpc.projects.listInfinite.useInfiniteQuery({
     limit,
     search: search || undefined,
-    status: 'BUDGETING'
+    onlyWithBudget: true
+
   }, {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialCursor: null,

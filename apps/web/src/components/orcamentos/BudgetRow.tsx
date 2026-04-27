@@ -57,6 +57,7 @@ export function BudgetRow({
   };
 
   const hasChildren = item.children && item.children.length > 0;
+  const isGroupingRow = item.type === 'STAGE' || item.type === 'SUB_STAGE';
 
   const handleBdiChange = (value: number) => {
     if (value === item.bdi) return;
@@ -142,6 +143,22 @@ export function BudgetRow({
                       <Button 
                         variant="ghost" 
                         size="icon" 
+                        className="h-6 w-6 text-[#1A3C5E] hover:text-blue-600 hover:bg-blue-50"
+                        onClick={() => onAddChild(item.id, 'COMPOSITION')}
+                      >
+                        <Calculator className="w-3 h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent><p className="text-[10px] font-bold uppercase">Composição</p></TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
                         className="h-6 w-6 text-orange-400 hover:text-orange-600 hover:bg-orange-50"
                         onClick={() => onAddChild(item.id, 'INPUT')}
                       >
@@ -172,42 +189,53 @@ export function BudgetRow({
           </div>
         </div>
 
+        {/* Quantidade */}
         <div className="w-24 px-2 border-l border-slate-100">
-          <input 
-            type="number"
-            className="w-full bg-transparent border-none text-right font-semibold text-xs text-slate-500 focus:ring-0"
-            defaultValue={item.quantity}
-            onBlur={(e) => onUpdate(item.id, { quantity: parseFloat(e.target.value) })}
-            disabled={item.type === 'STAGE' || item.type === 'SUB_STAGE'}
-          />
+          {!isGroupingRow && (
+            <input 
+              type="number"
+              className="w-full bg-transparent border-none text-right font-semibold text-xs text-slate-500 focus:ring-0"
+              defaultValue={item.quantity}
+              onBlur={(e) => onUpdate(item.id, { quantity: parseFloat(e.target.value) })}
+            />
+          )}
         </div>
 
+        {/* Unidade */}
         <div className="w-16 px-2 border-l border-slate-100 flex justify-center">
-          <input 
-            className="w-full bg-transparent border-none text-center font-bold text-[10px] uppercase text-slate-400 focus:ring-0"
-            defaultValue={item.unit}
-            onBlur={(e) => onUpdate(item.id, { unit: e.target.value })}
-            disabled={item.type === 'STAGE' || item.type === 'SUB_STAGE'}
-          />
+          {!isGroupingRow && (
+            <input 
+              className="w-full bg-transparent border-none text-center font-bold text-[10px] uppercase text-slate-400 focus:ring-0"
+              defaultValue={item.unit}
+              onBlur={(e) => onUpdate(item.id, { unit: e.target.value })}
+            />
+          )}
         </div>
 
+        {/* Custo Unitário */}
         <div className="w-32 px-3 border-l border-slate-100">
-          <input 
-            type="number"
-            className="w-full bg-transparent border-none text-right font-bold text-xs text-slate-900 focus:ring-0"
-            defaultValue={item.unitPrice}
-            onBlur={(e) => onUpdate(item.id, { unitPrice: parseFloat(e.target.value) })}
-            disabled={hasChildren}
-          />
+          {!isGroupingRow && (
+            <input 
+              type="number"
+              className="w-full bg-transparent border-none text-right font-bold text-xs text-slate-900 focus:ring-0"
+              defaultValue={item.unitPrice}
+              onBlur={(e) => onUpdate(item.id, { unitPrice: parseFloat(e.target.value) })}
+              disabled={hasChildren}
+            />
+          )}
         </div>
 
         {/* Custo Total */}
         <div className="w-36 px-4 border-l border-slate-100 text-right">
-          <span className="text-xs font-bold text-slate-400">
+          <span className={cn(
+            "text-xs font-bold",
+            isGroupingRow ? "text-[#1A3C5E]" : "text-slate-400"
+          )}>
             {formatCurrency(item.total)}
           </span>
         </div>
 
+        {/* BDI */}
         <div className="w-24 px-2 border-l border-slate-100">
           <div className="relative">
             <input 
@@ -220,12 +248,16 @@ export function BudgetRow({
           </div>
         </div>
 
+        {/* Preço Unitário */}
         <div className="w-32 px-3 border-l border-slate-100 text-right">
-          <span className="text-xs font-bold text-slate-900">
-            {formatCurrency(item.unitPrice * (1 + (item.bdi || 0) / 100))}
-          </span>
+          {!isGroupingRow && (
+            <span className="text-xs font-bold text-slate-900">
+              {formatCurrency(item.unitPrice * (1 + (item.bdi || 0) / 100))}
+            </span>
+          )}
         </div>
 
+        {/* Preço Total */}
         <div className={cn(
           "w-40 px-4 border-l border-slate-100 text-right",
           item.type === 'STAGE' ? "bg-slate-50" : "bg-slate-50/30"

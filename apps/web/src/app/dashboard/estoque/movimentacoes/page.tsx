@@ -3,21 +3,19 @@
 import { useState } from "react";
 import { trpc } from "@/trpc/client";
 import { 
-  PackageOpen, 
-  ArrowLeft, 
-  History, 
-  LayoutDashboard, 
+  Info, 
+  ChevronDown, 
   Search, 
-  Filter,
   Download,
+  Plus,
+  MoreVertical,
+  ArrowLeft,
+  PackageOpen,
   Upload,
   Replace,
   Box,
-  Truck,
   Wrench,
-  CircleCheck,
-  CircleAlert,
-  BarChart3
+  Check
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -32,7 +30,6 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { 
   Select, 
   SelectContent, 
@@ -40,322 +37,405 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StockMovementDialog } from "@/components/estoque/StockMovementDialog";
+import { cn } from "@/lib/utils";
 
 export default function StockMovementsPage() {
-  const [depotId, setDepotId] = useState<string>("all");
+  const [selectedDepots, setSelectedDepots] = useState<string[]>([]);
+  const [tempSelectedDepots, setTempSelectedDepots] = useState<string[]>([]);
+  const [depotSearch, setDepotSearch] = useState("");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("saldos");
+  const [activeTab, setActiveTab] = useState("disponiveis");
+  const [itemType, setItemType] = useState<"materials" | "equipment">("materials");
+  const [availability, setAvailability] = useState("all");
 
   const utils = trpc.useUtils();
   const { data: depots } = trpc.stock.getDepots.useQuery();
   
   const { data: inventory, isLoading: isLoadingInv } = trpc.stock.getInventory.useQuery(
-    { depotId: depotId === "all" ? undefined : depotId },
-    { enabled: activeTab === "saldos" }
+    { depotId: selectedDepots.length > 0 ? selectedDepots[0] : undefined },
+    { enabled: activeTab === "disponiveis" }
   );
 
   const { data: assets, isLoading: isLoadingAssets } = trpc.stock.getAssets.useQuery(
-    { depotId: depotId === "all" ? undefined : depotId },
-    { enabled: activeTab === "equipamentos" }
+    { depotId: selectedDepots.length > 0 ? selectedDepots[0] : undefined },
+    { enabled: activeTab === "disponiveis" }
   );
 
   const { data: movements, isLoading: isLoadingMoves } = trpc.stock.getMovements.useQuery(
-    { depotId: depotId === "all" ? undefined : depotId },
-    { enabled: activeTab === "historico" }
+    { depotId: selectedDepots.length > 0 ? selectedDepots[0] : undefined },
+    { enabled: activeTab !== "disponiveis" && activeTab !== "relatorios" }
   );
 
-  // Financial Summary Calculations
-  const totalInStock = inventory?.reduce((acc, item) => acc + (item.totalValue || 0), 0) || 0;
-  const equipmentCount = assets?.length || 0;
-  const availableAssets = assets?.filter((a: any) => a.status === 'AVAILABLE').length || 0;
+  const filteredDepots = depots?.filter(d => 
+    d.name.toLowerCase().includes(depotSearch.toLowerCase())
+  );
 
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case 'AVAILABLE': return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-none">Disponível</Badge>;
-      case 'IN_USE': return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-none">Em Uso</Badge>;
-      case 'MAINTENANCE': return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-none">Manutenção</Badge>;
-      case 'RETIRED': return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-none">Baixado</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+  const handleToggleDepot = (id: string) => {
+    setTempSelectedDepots(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setTempSelectedDepots(depots?.map(d => d.id) || []);
+    } else {
+      setTempSelectedDepots([]);
     }
   };
 
-  const renderMovementIcon = (type: string) => {
-    switch (type) {
-      case 'ENTRY': return <Download className="h-4 w-4 text-emerald-500" />;
-      case 'EXIT': return <Upload className="h-4 w-4 text-red-500" />;
-      case 'TRANSFER_IN':
-      case 'TRANSFER_OUT': return <Replace className="h-4 w-4 text-blue-500" />;
-      default: return <PackageOpen className="h-4 w-4 text-slate-400" />;
-    }
+  const applyFilter = () => {
+    setSelectedDepots(tempSelectedDepots);
+    setIsFilterOpen(false);
+  };
+
+  const getDepotLabel = () => {
+    const active = selectedDepots;
+    if (active.length === 0 || (depots && active.length === depots.length)) return "Todos";
+    if (active.length === 1) return depots?.find(d => d.id === active[0])?.name;
+    return `${active.length} Selecionados`;
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-[1600px] mx-auto animate-in fade-in duration-500">
-      {/* Top Header & Summary */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-5">
-          <Link href="/dashboard/estoque">
-            <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl hover:bg-slate-50 border border-slate-100">
-              <ArrowLeft className="h-5 w-5 text-slate-600" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-extrabold text-[#1A3C5E] tracking-tight">Movimentações</h1>
-            <p className="text-slate-500 font-medium">Controle físico e financeiro de materiais e equipamentos.</p>
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Top Header */}
+      <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between shadow-sm sticky top-0 z-20">
+        <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-slate-700">Estoque</h1>
+            <Info className="h-4 w-4 text-slate-400 cursor-help" />
           </div>
+
+          {/* Custom Depot Filter */}
+          <Popover open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <PopoverTrigger asChild>
+              <div className="flex items-center border border-slate-200 rounded overflow-hidden cursor-pointer hover:border-slate-300 transition-all group">
+                <div className="bg-[#1A3C5E] px-4 py-2 text-white text-xs font-bold whitespace-nowrap border-r border-[#1A3C5E]">
+                  Filtrado por Depósito:
+                </div>
+                <div className="bg-white px-4 py-2 flex items-center justify-between gap-8 min-w-[180px]">
+                  <span className="text-slate-600 text-xs font-bold">{getDepotLabel()}</span>
+                  <ChevronDown className={cn("h-3 w-3 text-slate-400 transition-transform", isFilterOpen && "rotate-180")} />
+                </div>
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-[400px] p-0 rounded-lg shadow-2xl border-slate-200 overflow-hidden" align="start">
+              <div className="p-4 space-y-4">
+                {/* Search in Dropdown */}
+                <div className="relative">
+                  <Input 
+                    placeholder="Buscar" 
+                    className="h-10 bg-white border-slate-200 pl-4 pr-10 text-sm rounded"
+                    value={depotSearch}
+                    onChange={(e) => setDepotSearch(e.target.value)}
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                </div>
+
+                {/* Select All */}
+                <div className="flex items-center gap-3 px-1 py-1">
+                  <Checkbox 
+                    id="all-depots" 
+                    checked={depots && tempSelectedDepots.length === depots.length}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <label htmlFor="all-depots" className="text-sm font-medium text-slate-600 cursor-pointer">
+                    Todos os depósitos
+                  </label>
+                </div>
+
+                {/* List of Deposits */}
+                <div className="max-h-[300px] overflow-y-auto custom-scrollbar space-y-1">
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1 py-2">Empresa</p>
+                  {filteredDepots?.map((depot) => (
+                    <div key={depot.id} className="flex items-center gap-3 px-1 py-2 hover:bg-slate-50 rounded transition-colors group">
+                      <Checkbox 
+                        id={`depot-${depot.id}`}
+                        checked={tempSelectedDepots.includes(depot.id)}
+                        onCheckedChange={() => handleToggleDepot(depot.id)}
+                      />
+                      <label htmlFor={`depot-${depot.id}`} className="text-sm text-slate-500 font-medium cursor-pointer group-hover:text-slate-700">
+                        Depósito: {depot.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Popover Footer */}
+              <div className="p-4 bg-[#F8FAFC] border-t border-slate-200 flex items-center justify-between">
+                <Button 
+                  onClick={applyFilter}
+                  className="bg-[#4CAF50] hover:bg-[#43A047] text-white h-10 px-8 rounded font-bold text-xs uppercase"
+                >
+                  FILTRAR
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="h-10 bg-white border-slate-200 rounded text-slate-500 font-bold text-xs flex items-center gap-2 px-4"
+                >
+                  <Plus className="h-4 w-4" />
+                  NOVO DEPÓSITO
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="bg-slate-50 px-6 py-3 rounded-2xl border border-slate-100 shadow-inner">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valor Total Imobilizado</p>
-            <p className="text-2xl font-black text-[#1A3C5E]">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInStock)}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 flex flex-col items-center min-w-[100px]">
-              <span className="text-xs font-bold text-emerald-600">Disponíveis</span>
-              <span className="text-lg font-bold text-emerald-700">{availableAssets}</span>
-            </div>
-            <div className="bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 flex flex-col items-center min-w-[100px]">
-              <span className="text-xs font-bold text-blue-600">Em Uso</span>
-              <span className="text-lg font-bold text-blue-700">{equipmentCount - availableAssets}</span>
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+           <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="bg-[#4CAF50] hover:bg-[#43A047] text-white h-10 px-6 rounded font-bold text-[11px] uppercase tracking-wider flex items-center gap-2">
+                + NOVA MOVIMENTAÇÃO
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 p-2 rounded-xl">
+              <StockMovementDialog onSuccess={() => utils.stock.invalidate()} />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
-      {/* Persistence Controls */}
-      <div className="flex flex-col md:flex-row gap-4 items-end">
-        <div className="w-full md:w-72 space-y-2">
-          <label className="text-xs font-bold text-slate-400 uppercase ml-1">Localização</label>
-          <Select value={depotId} onValueChange={setDepotId}>
-            <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white">
-              <SelectValue placeholder="Todos os Depósitos" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Depósitos</SelectItem>
-              {depots?.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 space-y-2 relative">
-          <label className="text-xs font-bold text-slate-400 uppercase ml-1">Filtro Rápido</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input 
-              placeholder="Buscar por nome, tag ou número de série..." 
-              className="pl-10 h-11 rounded-xl border-slate-200 bg-white"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-        <StockMovementDialog onSuccess={() => utils.stock.invalidate()} />
-      </div>
+      <div className="p-8 space-y-6 max-w-[1600px] mx-auto">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="bg-transparent border-b border-slate-200 h-auto p-0 flex justify-start gap-8 rounded-none w-full mb-8">
+            {["Disponíveis", "Entradas", "Saídas", "Transferências", "Relatórios"].map((tab) => (
+              <TabsTrigger 
+                key={tab}
+                value={tab.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}
+                className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:border-b-4 data-[state=active]:border-[#1A3C5E] data-[state=active]:text-[#1A3C5E] data-[state=active]:shadow-none rounded-none py-3 px-1 font-medium text-slate-500 text-sm transition-all border-b-4 border-transparent"
+              >
+                {tab}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-      {/* Main Content Areas */}
-      <Tabs defaultValue="disponiveis" className="w-full space-y-6" onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-100/60 p-1.5 rounded-2xl border border-slate-200 h-auto flex flex-wrap md:flex-nowrap gap-1 w-full md:w-fit shadow-sm">
-          <TabsTrigger 
-            value="disponiveis" 
-            className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1A3C5E] data-[state=active]:shadow-sm py-2.5 px-6 font-bold text-slate-500 transition-all flex items-center gap-2.5 text-[10px] uppercase tracking-widest"
-          >
-            <Box className="w-4 h-4 text-slate-400 group-data-[state=active]:text-[#F07B2B]" /> 
-            Disponíveis
-          </TabsTrigger>
-          <TabsTrigger 
-            value="entradas" 
-            className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1A3C5E] data-[state=active]:shadow-sm py-2.5 px-6 font-bold text-slate-500 transition-all flex items-center gap-2.5 text-[10px] uppercase tracking-widest"
-          >
-            <Download className="w-4 h-4 text-slate-400" /> 
-            Entradas
-          </TabsTrigger>
-          <TabsTrigger 
-            value="saidas" 
-            className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1A3C5E] data-[state=active]:shadow-sm py-2.5 px-6 font-bold text-slate-500 transition-all flex items-center gap-2.5 text-[10px] uppercase tracking-widest"
-          >
-            <Upload className="w-4 h-4 text-slate-400" /> 
-            Saídas
-          </TabsTrigger>
-          <TabsTrigger 
-            value="transferencias" 
-            className="rounded-xl data-[state=active]:bg-white data-[state=active]:text-[#1A3C5E] data-[state=active]:shadow-sm py-2.5 px-6 font-bold text-slate-500 transition-all flex items-center gap-2.5 text-[10px] uppercase tracking-widest"
-          >
-            <Replace className="w-4 h-4 text-slate-400" /> 
-            Transferências
-          </TabsTrigger>
-        </TabsList>
+          <TabsContent value="disponiveis" className="mt-0 space-y-6">
+            {/* Sub-header Controls */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center bg-white border border-slate-200 rounded p-1 shadow-sm">
+                <Button 
+                  onClick={() => setItemType("materials")}
+                  className={cn(
+                    "h-9 px-8 rounded text-sm font-bold transition-all",
+                    itemType === "materials" 
+                      ? "bg-[#1A3C5E] text-white shadow-md" 
+                      : "bg-transparent text-slate-400 hover:text-slate-600 shadow-none hover:bg-slate-50"
+                  )}
+                >
+                  Materiais
+                </Button>
+                <Button 
+                  onClick={() => setItemType("equipment")}
+                  className={cn(
+                    "h-9 px-8 rounded text-sm font-bold transition-all",
+                    itemType === "equipment" 
+                      ? "bg-[#1A3C5E] text-white shadow-md" 
+                      : "bg-transparent text-slate-400 hover:text-slate-600 shadow-none hover:bg-slate-50"
+                  )}
+                >
+                  Equipamentos
+                </Button>
+              </div>
 
-        <TabsContent value="disponiveis" className="mt-0 space-y-6">
-          <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden bg-white">
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Box className="h-4 w-4 text-slate-400" /> Materiais e Bulk
-              </h3>
-              <Badge variant="outline" className="bg-white">Total: {inventory?.length || 0} Itens</Badge>
+              <div className="flex flex-1 max-w-4xl gap-4">
+                <div className="relative flex-1">
+                  <Input 
+                    placeholder="Busque um insumo" 
+                    className="h-10 bg-white border-slate-200 pl-4 pr-10 text-sm rounded focus-visible:ring-1 focus-visible:ring-slate-300"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#4CAF50]" />
+                </div>
+
+                <div className="w-64 space-y-1 relative">
+                   <div className="absolute -top-5 left-1 text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Disponibilidade de insumos</div>
+                   <Select value={availability} onValueChange={setAvailability}>
+                    <SelectTrigger className="h-10 bg-white border-slate-200 rounded text-xs">
+                      <SelectValue placeholder="Disponíveis" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Disponíveis</SelectItem>
+                      <SelectItem value="low">Estoque Baixo</SelectItem>
+                      <SelectItem value="out">Esgotados</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Button className="bg-[#4CAF50] hover:bg-[#43A047] text-white h-10 px-4 rounded flex items-center gap-2 font-bold text-xs">
+                  <Download className="h-4 w-4" />
+                  BAIXAR
+                </Button>
+              </div>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Table Container */}
+            <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden mt-4">
               <Table>
-                <TableHeader className="bg-slate-50/50">
-                  <TableRow className="hover:bg-transparent border-slate-100">
-                    <TableHead className="w-[40%] pl-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Material</TableHead>
-                    <TableHead className="text-center font-bold text-slate-500 uppercase text-[10px] tracking-widest">UN</TableHead>
-                    <TableHead className="text-center font-bold text-slate-500 uppercase text-[10px] tracking-widest">Saldo</TableHead>
-                    <TableHead className="text-right font-bold text-slate-500 uppercase text-[10px] tracking-widest">Custo Médio</TableHead>
-                    <TableHead className="text-right pr-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Valor Total</TableHead>
+                <TableHeader className="bg-[#F8FAFC]">
+                  <TableRow className="hover:bg-transparent border-slate-200">
+                    <TableHead className="w-[15%] pl-6 font-bold text-slate-500 uppercase text-[11px] tracking-wider">Código</TableHead>
+                    <TableHead className="w-[35%] font-bold text-slate-500 uppercase text-[11px] tracking-wider">Insumo</TableHead>
+                    <TableHead className="w-[10%] text-center font-bold text-slate-500 uppercase text-[11px] tracking-wider">Qtde</TableHead>
+                    <TableHead className="w-[20%] font-bold text-slate-500 uppercase text-[11px] tracking-wider">Centro de custo</TableHead>
+                    <TableHead className="w-[15%] font-bold text-slate-500 uppercase text-[11px] tracking-wider">Depósito</TableHead>
+                    <TableHead className="w-[5%] text-right pr-6"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {isLoadingInv ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400 italic">Carregando...</TableCell></TableRow>
-                  ) : inventory?.filter(i => i.catalogItem?.type !== 'EQUIPMENT').map((item) => (
-                    <TableRow key={item.id} className="hover:bg-slate-50/50 border-slate-50 group">
-                      <TableCell className="pl-8 py-4">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-slate-900 leading-tight">{item.catalogItem?.description || item.material}</span>
-                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-tighter">{item.catalogItem?.code || 'S/ CODE'}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center font-mono text-slate-500 font-bold text-xs">{item.unit}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={`inline-flex items-center justify-center min-w-[2.5rem] py-1 rounded-lg font-bold ${item.quantity > 0 ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 bg-slate-50'}`}>
-                          {item.quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right text-slate-600 font-medium">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.averageUnitCost)}
-                      </TableCell>
-                      <TableCell className="text-right pr-8 font-black text-[#1A3C5E]">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.totalValue)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {isLoadingInv || isLoadingAssets ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400 italic">Carregando estoque...</TableCell></TableRow>
+                  ) : itemType === "materials" ? (
+                    inventory?.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400">Nenhum material em estoque.</TableCell></TableRow>
+                    ) : inventory?.map((item) => (
+                      <TableRow key={item.id} className="hover:bg-slate-50/50 border-slate-100 h-14">
+                        <TableCell className="pl-6 font-medium text-slate-500 text-sm">{item.catalogItem?.code || '95'}</TableCell>
+                        <TableCell className="font-bold text-slate-700 text-sm uppercase">
+                          {item.catalogItem?.description || item.material}
+                        </TableCell>
+                        <TableCell className="text-center text-slate-600 font-medium text-sm">
+                          {item.quantity.toLocaleString('pt-BR')}
+                        </TableCell>
+                        <TableCell className="text-slate-600 text-sm font-medium">Empresa</TableCell>
+                        <TableCell className="text-slate-600 text-sm font-medium">{item.depot?.name}</TableCell>
+                        <TableCell className="text-right pr-6">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#4CAF50]">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    assets?.length === 0 ? (
+                      <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400">Nenhum equipamento encontrado.</TableCell></TableRow>
+                    ) : assets?.map((asset) => (
+                      <TableRow key={asset.id} className="hover:bg-slate-50/50 border-slate-100 h-14">
+                        <TableCell className="pl-6 font-medium text-slate-500 text-sm">{asset.tag || asset.catalogItem?.code}</TableCell>
+                        <TableCell className="font-bold text-slate-700 text-sm uppercase">
+                          {asset.catalogItem?.description}
+                        </TableCell>
+                        <TableCell className="text-center text-slate-600 font-medium text-sm">
+                          1
+                        </TableCell>
+                        <TableCell className="text-slate-600 text-sm font-medium">Empresa</TableCell>
+                        <TableCell className="text-slate-600 text-sm font-medium">{asset.currentDepot?.name}</TableCell>
+                        <TableCell className="text-right pr-6">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-[#4CAF50]">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
-          </Card>
 
-          <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden bg-white">
-            <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
-              <h3 className="font-bold text-slate-800 flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-[#F07B2B]" /> Equipamentos Disponíveis
-              </h3>
-              <Badge variant="outline" className="bg-white">Total: {assets?.filter(a => a.status === 'AVAILABLE').length || 0} Ativos</Badge>
+            {/* Footer Summary */}
+            <div className="flex justify-end items-center gap-4 mt-6">
+              <span className="text-slate-400 text-sm font-medium">Quantidade total de disponíveis</span>
+              <div className="bg-white border border-slate-200 px-6 py-2 rounded shadow-sm">
+                <span className="text-xl font-bold text-[#1A3C5E]">
+                  {itemType === "materials" 
+                    ? inventory?.reduce((acc, i) => acc + i.quantity, 0).toLocaleString('pt-BR', { minimumFractionDigits: 4 })
+                    : assets?.length.toLocaleString('pt-BR')
+                  }
+                </span>
+              </div>
             </div>
-            <Table>
-              <TableHeader className="bg-slate-50/50">
-                <TableRow className="hover:bg-transparent border-slate-100">
-                  <TableHead className="pl-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Patrimônio / TAG</TableHead>
-                  <TableHead className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">Descrição</TableHead>
-                  <TableHead className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">Local</TableHead>
-                  <TableHead className="text-right pr-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoadingAssets ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400 italic">Carregando...</TableCell></TableRow>
-                ) : assets?.filter(a => a.status === 'AVAILABLE').map((asset) => (
-                  <TableRow key={asset.id} className="hover:bg-slate-50/50 border-slate-50 group">
-                    <TableCell className="pl-8 py-4">
-                      <span className="font-mono font-bold text-[#F07B2B] bg-orange-50 px-2 py-0.5 rounded border border-orange-100">{asset.tag || 'S/ TAG'}</span>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-bold text-slate-900">{asset.catalogItem?.description}</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2 text-slate-600 font-medium">
-                        <Truck className="h-3.5 w-3.5 text-slate-400" />
-                        {asset.currentDepot?.name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right pr-8">
-                       {renderStatusBadge(asset.status)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        </TabsContent>
+          </TabsContent>
 
-        <TabsContent value="entradas" className="mt-0">
-          <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden bg-white">
-            <HistoryTable movements={movements?.filter(m => m.type === 'ENTRY') || []} isLoading={isLoadingMoves} />
-          </Card>
-        </TabsContent>
+          <TabsContent value="entradas" className="mt-0">
+             <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                <HistoryTable movements={movements?.filter(m => m.type === 'ENTRY') || []} isLoading={isLoadingMoves} />
+             </div>
+          </TabsContent>
 
-        <TabsContent value="saidas" className="mt-0">
-          <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden bg-white">
-            <HistoryTable movements={movements?.filter(m => m.type === 'EXIT') || []} isLoading={isLoadingMoves} />
-          </Card>
-        </TabsContent>
+          <TabsContent value="saidas" className="mt-0">
+             <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                <HistoryTable movements={movements?.filter(m => m.type === 'EXIT') || []} isLoading={isLoadingMoves} />
+             </div>
+          </TabsContent>
 
-        <TabsContent value="transferencias" className="mt-0">
-          <Card className="border-slate-200 shadow-sm rounded-3xl overflow-hidden bg-white">
-            <HistoryTable movements={movements?.filter(m => m.type.startsWith('TRANSFER')) || []} isLoading={isLoadingMoves} />
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="transferencias" className="mt-0">
+             <div className="bg-white border border-slate-200 rounded shadow-sm overflow-hidden">
+                <HistoryTable movements={movements?.filter(m => m.type.startsWith('TRANSFER')) || []} isLoading={isLoadingMoves} />
+             </div>
+          </TabsContent>
+
+          <TabsContent value="relatorios" className="mt-0">
+             <div className="bg-white border border-slate-200 rounded shadow-sm p-20 text-center flex flex-col items-center gap-4">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border border-slate-100">
+                  <Info className="h-8 w-8 text-slate-300" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-700">Relatórios de Estoque</h3>
+                  <p className="text-slate-400 max-w-sm mx-auto">Em breve: Módulo avançado de análise financeira e giro de estoque.</p>
+                </div>
+             </div>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }
 
 function HistoryTable({ movements, isLoading }: { movements: any[], isLoading: boolean }) {
-  const renderMovementIcon = (type: string) => {
-    switch (type) {
-      case 'ENTRY': return <Download className="h-4 w-4 text-emerald-500" />;
-      case 'EXIT': return <Upload className="h-4 w-4 text-red-500" />;
-      case 'TRANSFER_IN':
-      case 'TRANSFER_OUT': return <Replace className="h-4 w-4 text-blue-500" />;
-      default: return <PackageOpen className="h-4 w-4 text-slate-400" />;
-    }
-  };
-
   return (
     <Table>
-      <TableHeader className="bg-slate-50/50">
-        <TableRow className="hover:bg-transparent border-slate-100">
-          <TableHead className="pl-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Data / Hora</TableHead>
-          <TableHead className="text-center font-bold text-slate-500 uppercase text-[10px] tracking-widest">Tipo</TableHead>
-          <TableHead className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">Item / Ativo</TableHead>
-          <TableHead className="text-center font-bold text-slate-500 uppercase text-[10px] tracking-widest">Qtd</TableHead>
-          <TableHead className="font-bold text-slate-500 uppercase text-[10px] tracking-widest">Local</TableHead>
-          <TableHead className="pr-8 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Usuário</TableHead>
+      <TableHeader className="bg-[#F8FAFC]">
+        <TableRow className="hover:bg-transparent border-slate-200">
+          <TableHead className="pl-6 font-bold text-slate-500 uppercase text-[11px] tracking-wider">Data / Hora</TableHead>
+          <TableHead className="font-bold text-slate-500 uppercase text-[11px] tracking-wider">Item / Ativo</TableHead>
+          <TableHead className="text-center font-bold text-slate-500 uppercase text-[11px] tracking-wider">Qtd</TableHead>
+          <TableHead className="font-bold text-slate-500 uppercase text-[11px] tracking-wider">Local</TableHead>
+          <TableHead className="pr-6 font-bold text-slate-500 uppercase text-[11px] tracking-wider">Usuário</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {isLoading ? (
-          <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400">Carregando histórico...</TableCell></TableRow>
+          <TableRow><TableCell colSpan={5} className="text-center py-20 text-slate-400 italic">Carregando histórico...</TableCell></TableRow>
         ) : movements?.length === 0 ? (
-          <TableRow><TableCell colSpan={6} className="text-center py-20 text-slate-400">Nenhuma movimentação encontrada.</TableCell></TableRow>
+          <TableRow><TableCell colSpan={5} className="text-center py-20 text-slate-400">Nenhuma movimentação encontrada.</TableCell></TableRow>
         ) : movements?.map((move) => (
-          <TableRow key={move.id} className="hover:bg-slate-50/50 border-slate-50">
-            <TableCell className="pl-8 py-4 text-xs font-bold text-slate-500">
+          <TableRow key={move.id} className="hover:bg-slate-50/50 border-slate-100 h-14">
+            <TableCell className="pl-6 text-xs font-bold text-slate-500">
               {new Date(move.createdAt).toLocaleString()}
             </TableCell>
-            <TableCell className="text-center">
-              <div className="flex justify-center">
-                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-100">
-                  {renderMovementIcon(move.type)}
-                </div>
+            <TableCell>
+              <div className="flex flex-col">
+                <p className="font-bold text-slate-700 text-sm uppercase">{move.stockItem?.catalogItem?.description || move.stockItem?.material}</p>
+                {move.asset && (
+                  <span className="text-[10px] font-bold text-orange-600">TAG: {move.asset.tag}</span>
+                )}
               </div>
             </TableCell>
+            <TableCell className="text-center font-bold text-slate-700 text-sm">{move.quantity}</TableCell>
             <TableCell>
-              <p className="font-bold text-slate-900">{move.stockItem?.catalogItem?.description || move.stockItem?.material}</p>
-              {move.asset && (
-                <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 rounded">TAG: {move.asset.tag}</span>
-              )}
+              <div className="flex flex-col">
+                <p className="text-xs font-bold text-slate-800">{move.depot?.name}</p>
+                {move.projectStage && <p className="text-[9px] text-slate-400 uppercase">Obra: {move.projectStage.project?.name}</p>}
+              </div>
             </TableCell>
-            <TableCell className="text-center font-bold text-slate-700">{move.quantity}</TableCell>
-            <TableCell>
-              <p className="text-xs font-bold text-slate-800">{move.depot?.name}</p>
-              {move.projectStage && <p className="text-[10px] text-slate-400 uppercase tracking-tighter">Etapa: {move.projectStage.name}</p>}
-            </TableCell>
-            <TableCell className="pr-8 font-medium text-slate-600">
+            <TableCell className="pr-6 font-medium text-slate-600 text-xs">
               {move.user?.name}
             </TableCell>
           </TableRow>

@@ -18,6 +18,10 @@ import { catalogItemRouter } from './routers/catalogItem';
 import { compositionRouter } from './routers/composition';
 import { contractTemplatesRouter } from './routers/contractTemplates';
 import { projectContractsRouter } from './routers/projectContracts';
+import { measurementUnitRouter } from './routers/measurementUnit';
+import { compositionTypeRouter } from './routers/compositionType';
+import { catalogItemBaseRouter } from './routers/catalogItemBase';
+import { catalogItemCategoryRouter } from './routers/catalogItemCategory';
 
 export const appRouter = router({
   projects: projectsRouter,
@@ -39,6 +43,10 @@ export const appRouter = router({
   composition: compositionRouter,
   contractTemplates: contractTemplatesRouter,
   projectContracts: projectContractsRouter,
+  measurementUnit: measurementUnitRouter,
+  compositionType: compositionTypeRouter,
+  catalogItemBase: catalogItemBaseRouter,
+  catalogItemCategory: catalogItemCategoryRouter,
 });
 
 export type AppRouter = typeof appRouter;

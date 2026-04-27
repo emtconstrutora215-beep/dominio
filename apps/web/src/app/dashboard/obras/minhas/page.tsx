@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { 
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow 
@@ -30,6 +31,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function MinhasObrasPage() {
+  const router = useRouter();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const utils = trpc.useUtils();
@@ -121,7 +123,11 @@ export default function MinhasObrasPage() {
                   const visibilityText = usersCount === 0 ? "Toda a empresa" : `${usersCount} usuário(s)`;
 
                   return (
-                    <TableRow key={project.id} className="hover:bg-slate-50 cursor-pointer">
+                    <TableRow 
+                      key={project.id} 
+                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/dashboard/obras/minhas/${project.id}`)}
+                    >
                       <TableCell className="font-mono text-xs text-slate-500">
                         {project.code || project.id.split('-')[0].toUpperCase()}
                       </TableCell>

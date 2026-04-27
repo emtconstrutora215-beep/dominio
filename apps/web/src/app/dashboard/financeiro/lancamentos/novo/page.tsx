@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { 
   Plus, Search, Save, X, Trash2, Upload, FileText, 
-  ArrowLeft, Check, ChevronDown, Loader2
+  ArrowLeft, Check, ChevronDown, Loader2, Pencil, Calculator
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,6 +86,18 @@ export default function NovoLancamentoPage() {
 
     setSplits(newSplits);
   };
+
+  const handleCostCenterChange = (value: string) => {
+    setForm({...form, payerType: value});
+    if (value === "Obra") {
+      if (splits.length === 0) {
+        setSplits([{ projectId: "", projectStageId: "", amount: form.amount, percentage: 100 }]);
+      }
+    } else {
+      setSplits([]);
+    }
+  };
+
 
   const handleSave = (saveAndNew = false) => {
     if (!form.description || form.amount <= 0 || !form.contactId) {
@@ -199,12 +212,14 @@ export default function NovoLancamentoPage() {
               </SelectContent>
             </Select>
             <Input type="date" className="h-8 text-[11px] border-slate-200" value={form.dueDate} onChange={e => setForm({...form, dueDate: e.target.value})} />
-            <Select>
-              <SelectTrigger className="h-8 text-[11px] border-slate-200"><SelectValue placeholder="Empresa" /></SelectTrigger>
+            <Select value={form.payerType} onValueChange={handleCostCenterChange}>
+              <SelectTrigger className="h-8 text-[11px] border-slate-200"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Empresa">Empresa</SelectItem>
+                <SelectItem value="Obra">Obra</SelectItem>
               </SelectContent>
             </Select>
+
             <Button variant="ghost" size="icon" className="h-7 w-7 bg-orange-100 text-orange-500 hover:bg-orange-200"><ArrowLeft className="w-3.5 h-3.5 rotate-180" /></Button>
           </div>
         </div>
@@ -221,13 +236,15 @@ export default function NovoLancamentoPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1">Quem Paga: <span className="p-0.5 bg-slate-200 text-slate-500 text-[8px] rounded-full px-1">i</span></Label>
-                <Select value={form.payerType} onValueChange={v => setForm({...form, payerType: v})}>
+                <Select value={form.payerType} onValueChange={handleCostCenterChange}>
                   <SelectTrigger className="h-8 text-[11px] bg-white border-slate-300"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Empresa">Empresa</SelectItem>
+                    <SelectItem value="Obra">Obra</SelectItem>
                     <SelectItem value="Direto">Cliente/Direto</SelectItem>
                   </SelectContent>
                 </Select>
+
               </div>
             </div>
 
@@ -333,60 +350,120 @@ export default function NovoLancamentoPage() {
 
           {/* Right Column: Splits / Appropriation */}
           <div className="bg-white border border-slate-200 rounded flex flex-col shadow-sm">
-            <div className="p-3 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex gap-8 text-[10px] font-bold text-slate-400 uppercase">
+            <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+              <div className="grid grid-cols-[1fr_1fr_120px_100px_80px] w-full text-[10px] font-bold text-slate-500 uppercase">
                  <span>Obra</span>
                  <span>Etapa / Item</span>
-                 <span>Valor</span>
-                 <span>Porcentagem</span>
+                 <span className="text-right pr-4">Valor</span>
+                 <span className="text-right pr-4">Porcentagem</span>
+                 <span></span>
               </div>
             </div>
+
             
-            <div className="flex-1 overflow-auto p-4 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="flex-1 overflow-auto bg-white min-h-[300px]">
+
               {splits.length === 0 ? (
                 <span className="text-slate-300 text-xs italic">Nenhum centro de custo adicionado</span>
               ) : (
-                <div className="w-full flex flex-col gap-2">
+                <div className="w-full flex flex-col">
                   {splits.map((split, index) => (
-                    <div key={index} className="grid grid-cols-[1.5fr_1.5fr_100px_100px_40px] gap-2 items-center bg-slate-50 p-2 rounded border border-slate-100">
+                    <div key={index} className="grid grid-cols-[1fr_1fr_120px_100px_80px] gap-0 items-center border-b border-slate-50 hover:bg-slate-50/50 transition-colors py-1 px-4">
                       <Select value={split.projectId} onValueChange={v => handleSplitChange(index, "projectId", v)}>
-                        <SelectTrigger className="h-7 text-[10px] bg-white"><SelectValue placeholder="Obra" /></SelectTrigger>
-                        <SelectContent className="text-[10px]">
-                          {options?.projects.map(p => (
-                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        <SelectTrigger className="h-8 text-[11px] border-none shadow-none bg-transparent focus:ring-0 focus:bg-white px-0"><SelectValue placeholder="Selecione a Obra" /></SelectTrigger>
+                        <SelectContent className="text-[11px]">
+                          {(options?.projects as any[])?.filter((p: any) => p && p.id).map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ""}{p.name}</SelectItem>
                           ))}
                         </SelectContent>
+
                       </Select>
                       <Select value={split.projectStageId} onValueChange={v => handleSplitChange(index, "projectStageId", v)}>
-                        <SelectTrigger className="h-7 text-[10px] bg-white"><SelectValue placeholder="Etapa" /></SelectTrigger>
+                        <SelectTrigger className="h-8 text-[11px] border-none shadow-none bg-transparent focus:ring-0 focus:bg-white px-0"><SelectValue placeholder="Selecione a Etapa" /></SelectTrigger>
                         <SelectContent>
-                          {options?.projects.find(p => p.id === split.projectId)?.stages.map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          {options?.projects.find(p => p.id === split.projectId)?.stages.map((s, sIdx) => (
+                            <SelectItem key={s.id} value={s.id}>Etapa {sIdx + 1} - {s.name}</SelectItem>
                           ))}
                         </SelectContent>
+
                       </Select>
-                      <Input type="number" step="0.01" className="h-7 text-[10px] bg-white pr-2 text-right" value={split.amount} onChange={e => handleSplitChange(index, "amount", parseFloat(e.target.value) || 0)} />
-                      <div className="relative">
-                        <Input type="number" step="0.1" className="h-7 text-[10px] bg-white pr-4 text-right" value={split.percentage} onChange={e => handleSplitChange(index, "percentage", parseFloat(e.target.value) || 0)} />
-                        <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-slate-400">%</span>
+                      <div className="relative pr-4">
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          className="h-8 text-[11px] border-none shadow-none bg-transparent focus:ring-0 focus:bg-white text-right pr-0" 
+                          value={split.amount} 
+                          onChange={e => handleSplitChange(index, "amount", parseFloat(e.target.value) || 0)} 
+                        />
                       </div>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleRemoveSplit(index)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="relative pr-4">
+                        <div className="flex items-center justify-end">
+                          <Input 
+                            type="number" 
+                            step="0.1" 
+                            className="h-8 text-[11px] border-none shadow-none bg-transparent focus:ring-0 focus:bg-white text-right w-16 pr-1" 
+                            value={split.percentage} 
+                            onChange={e => handleSplitChange(index, "percentage", parseFloat(e.target.value) || 0)} 
+                          />
+                          <span className="text-[10px] text-slate-400">%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={() => handleRemoveSplit(index)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
+
               )}
             </div>
 
-            <div className="p-3 border-t border-slate-100 flex gap-2">
-               <Button variant="outline" className="h-7 text-[10px] font-bold uppercase gap-1 text-slate-600 px-3 bg-slate-50" onClick={handleAddSplit}>
-                 <Plus className="w-3 h-3" /> Centro de Custo
-               </Button>
-               <Button variant="outline" className="h-7 text-[10px] font-bold uppercase gap-1 text-slate-400 px-3 bg-slate-50" disabled>
-                 <ArrowLeft className="w-3 h-3 -rotate-90" /> Apropriar Insumos
-               </Button>
+            <div className="p-2 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+               <div className="flex gap-2">
+                 <div className="flex items-center overflow-hidden rounded border border-[#56ab2f]">
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 text-[10px] font-bold uppercase gap-1 text-white bg-[#56ab2f] hover:bg-[#4a9328] rounded-none px-3 border-r border-[#4a9328]" 
+                      onClick={handleAddSplit}
+                    >
+                      <Plus className="w-3 h-3" /> Centro de Custo
+                    </Button>
+                    <div className="bg-[#56ab2f] h-7 px-1.5 flex items-center justify-center">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                 </div>
+
+                 <div className="flex items-center overflow-hidden rounded border border-[#4eb9d9]">
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 text-[10px] font-bold uppercase gap-1 text-white bg-[#4eb9d9] hover:bg-[#43a1bc] rounded-none px-3 border-r border-[#43a1bc]" 
+                      disabled
+                    >
+                      Apropriar insumos
+                    </Button>
+                    <div className="bg-white h-7 w-7 flex items-center justify-center">
+                      {/* Box vazio como no mockup */}
+                    </div>
+                 </div>
+               </div>
+
+               <div className="flex gap-8 pr-12">
+                  <div className="flex flex-col items-end">
+                    <span className="text-[11px] font-bold text-slate-700">R$ {splits.reduce((acc, s) => acc + s.amount, 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                  <div className="flex flex-col items-end">
+                    <span className={`text-[11px] font-bold ${Math.abs(splits.reduce((acc, s) => acc + s.percentage, 0) - 100) < 0.01 ? 'text-green-600' : 'text-red-500'}`}>
+                      {splits.reduce((acc, s) => acc + s.percentage, 0).toFixed(0)}%
+                    </span>
+                  </div>
+               </div>
             </div>
+
           </div>
         </div>
       </div>

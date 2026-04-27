@@ -45,12 +45,12 @@ export function ProjectSelector({ projects, value, onChange, disabled }: Project
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full h-11 justify-between bg-white border-slate-200 rounded-lg px-4 font-normal transition-all shadow-none hover:border-slate-300 outline-none",
-            !value ? "text-slate-400" : "text-slate-600 border-slate-200",
-            disabled && "bg-slate-50 cursor-not-allowed hover:border-slate-200 opacity-80"
+            "w-full h-10 justify-between bg-white border-slate-300 rounded-sm px-3 font-normal transition-all shadow-none hover:border-slate-400 outline-none",
+            !value ? "text-slate-400" : "text-slate-600 border-slate-300",
+            disabled && "bg-slate-50 cursor-not-allowed opacity-80"
           )}
         >
-          <span className="truncate">
+          <span className="truncate text-sm">
             {isCompanySelected 
               ? "Empresa" 
               : selectedProject 
@@ -59,7 +59,7 @@ export function ProjectSelector({ projects, value, onChange, disabled }: Project
           </span>
           {!disabled && (
             <ChevronDown className={cn(
-              "ml-2 h-4 w-4 shrink-0 transition-transform duration-200 text-[#58B391]",
+              "ml-2 h-4 w-4 shrink-0 transition-transform duration-200 text-[#92D193]",
               open ? "rotate-180" : ""
             )} />
           )}

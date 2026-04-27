@@ -118,9 +118,16 @@ function NovaObraForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusParam = searchParams.get("status");
+  const editId = searchParams.get("id");
+  const isEditing = !!editId;
   
   // -- Queries para selects --
   const { data: options, isLoading: loadingOptions } = trpc.projects.formOptions.useQuery();
+
+  const { data: projectData, isLoading: loadingProject } = trpc.projects.getById.useQuery(
+    { id: editId as string },
+    { enabled: isEditing }
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -172,10 +179,62 @@ function NovaObraForm() {
 
   // Atualizar status se o parâmetro mudar
   useEffect(() => {
-    if (statusParam) {
+    if (statusParam && !isEditing) {
       form.setValue("status", statusParam as any);
     }
-  }, [statusParam, form]);
+  }, [statusParam, form, isEditing]);
+
+  // Carregar dados para edição
+  useEffect(() => {
+    if (isEditing && projectData) {
+      form.reset({
+        name: projectData.name || "",
+        code: projectData.code || "",
+        type: projectData.type || "",
+        status: projectData.status as any,
+        clientId: projectData.clientId || "",
+        totalArea: projectData.totalArea || null,
+        areaUnit: projectData.areaUnit || "m2",
+        art: projectData.art || "",
+        ceiCno: projectData.ceiCno || "",
+        technicalLeadId: projectData.technicalLeadId || "",
+        projectManagerId: projectData.projectManagerId || "",
+        cep: projectData.cep || "",
+        street: projectData.street || "",
+        number: projectData.number || "",
+        complement: projectData.complement || "",
+        neighborhood: projectData.neighborhood || "",
+        city: projectData.city || "",
+        state: projectData.state || "",
+        budget: projectData.budget || null,
+        paymentResponsibility: (projectData.paymentResponsibility as any) || "COMPANY",
+        defaultBankAccountId: projectData.defaultBankAccountId || "",
+        users: projectData.users?.map((u: any) => u.id) || [],
+        showInFinancial: projectData.showInFinancial ?? true,
+        showInInvoicing: projectData.showInInvoicing ?? true,
+        showInPurchasing: projectData.showInPurchasing ?? true,
+        projectContacts: (projectData.projectContacts as any[]) || [],
+        hasInvoicingData: !!projectData.invoicingContactId,
+        invoicingContact: projectData.invoicingContact ? {
+          ...projectData.invoicingContact,
+          name: projectData.invoicingContact.name || ""
+        } : {
+          personType: 'LEGAL',
+          name: "",
+          document: "",
+          email: "",
+          phone: "",
+          cep: "",
+          street: "",
+          number: "",
+          complement: "",
+          neighborhood: "",
+          city: "",
+          state: ""
+        }
+      });
+    }
+  }, [isEditing, projectData, form]);
 
   const { fields: contactFields, append: appendContact, remove: removeContact } = useFieldArray({
     control: form.control,
@@ -221,7 +280,7 @@ function NovaObraForm() {
   }, [selectedClientId, options?.clients]); // Removido form do array para evitar loop infinito
   
   const createMutation = trpc.projects.create.useMutation({
-    onSuccess: (project: any) => {
+    onSuccess: () => {
       toast.success("Obra cadastrada com sucesso!");
       router.push(`/dashboard/obras/minhas`);
     },
@@ -230,12 +289,29 @@ function NovaObraForm() {
     }
   });
 
+  const updateMutation = trpc.projects.update.useMutation({
+    onSuccess: () => {
+      toast.success("Obra atualizada com sucesso!");
+      router.push(`/dashboard/obras/minhas/${editId}`);
+    },
+    onError: (error) => {
+      toast.error(`Erro ao atualizar obra: ${error.message}`);
+    }
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+
   const onSubmit = (data: FormValues) => {
     // Se não habilitou faturamento, limpar o objeto para o back-end
     if (!data.hasInvoicingData) {
       data.invoicingContact = null;
     }
-    createMutation.mutate(data as any); 
+    
+    if (isEditing) {
+      updateMutation.mutate({ ...data, id: editId as string } as any);
+    } else {
+      createMutation.mutate(data as any); 
+    }
   };
 
   const handleCepSearch = async (cep: string, isBilling: boolean = false) => {
@@ -273,17 +349,19 @@ function NovaObraForm() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-8 border-b border-slate-100">
             <div className="space-y-1 border-l-4 border-[#1862a3] pl-6">
               <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className="text-[9px] uppercase font-semibold tracking-widest bg-slate-50 text-slate-700 px-2 py-0.5 border-slate-100 italic">Cadastrar Nova Obra</Badge>
+                <Badge variant="outline" className="text-[9px] uppercase font-semibold tracking-widest bg-slate-50 text-slate-700 px-2 py-0.5 border-slate-100 italic">
+                  {isEditing ? "Editar Detalhes da Obra" : "Cadastrar Nova Obra"}
+                </Badge>
               </div>
               <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase">
-                {form.watch("name") || "Ficha da Obra"}
+                {form.watch("name") || (isEditing ? "Carregando..." : "Ficha da Obra")}
               </h1>
             </div>
             
             <div className="flex gap-3">
               <Button variant="outline" type="button" onClick={() => router.back()} className="font-bold uppercase text-[10px] h-11 px-6 border-2">Sair</Button>
-              <Button onClick={form.handleSubmit(onSubmit)} disabled={createMutation.isPending} className="bg-[#1862a3] hover:bg-[#124d80] text-white font-black px-8 shadow-lg shadow-blue-100 h-11 text-[10px] uppercase tracking-widest">
-                {createMutation.isPending ? "Salvando..." : <><Save className="w-4 h-4 mr-2"/> Gravar Obra</>}
+              <Button onClick={form.handleSubmit(onSubmit)} disabled={isPending} className="bg-[#1862a3] hover:bg-[#124d80] text-white font-black px-8 shadow-lg shadow-blue-100 h-11 text-[10px] uppercase tracking-widest">
+                {isPending ? "Salvando..." : <><Save className="w-4 h-4 mr-2"/> {isEditing ? "Salvar Alterações" : "Gravar Obra"}</>}
               </Button>
             </div>
           </div>
@@ -753,12 +831,12 @@ function NovaObraForm() {
           <div className="flex justify-end pt-8 border-t-2 border-slate-100 mt-8">
              <Button 
                type="submit" 
-               disabled={createMutation.isPending} 
+               disabled={isPending} 
                className="bg-[#1862a3] hover:bg-[#124d80] text-white font-black px-12 h-14 shadow-xl shadow-blue-100 transition-all active:scale-95 uppercase tracking-widest text-xs"
              >
-                {createMutation.isPending ? "Salvando Obra..." : (
+                {isPending ? "Salvando Obra..." : (
                   <span className="flex items-center gap-3">
-                    Finalizar Cadastro da Obra <ArrowRight className="w-5 h-5 ml-2" />
+                    {isEditing ? "Salvar Alterações" : "Finalizar Cadastro da Obra"} <ArrowRight className="w-5 h-5 ml-2" />
                   </span>
                 )}
              </Button>

@@ -189,8 +189,14 @@ export function BudgetSpreadsheet({
             <Layers className="w-3.5 h-3.5 mr-2 text-[#1A3C5E]" /> 
             Inserir Etapa
           </Button>
-          <Button variant="ghost" size="sm" className="h-9 px-4 text-[10px] font-bold uppercase text-slate-400 group rounded-md">
-            <Calculator className="w-3.5 h-3.5 mr-2" /> Composição SINAPI
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-9 px-4 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-50 hover:text-[#1A3C5E] group rounded-md transition-all"
+            onClick={() => handleOpenModal('COMPOSITION', 'Inserir Composição')}
+          >
+            <Calculator className="w-3.5 h-3.5 mr-2 text-[#1A3C5E]" /> 
+            Adicionar Composição
           </Button>
         </div>
 
@@ -332,6 +338,22 @@ export function BudgetSpreadsheet({
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Sub-etapa</p></TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-7 w-7 text-[#1A3C5E] hover:text-blue-600 hover:bg-blue-50"
+                                      onClick={() => handleOpenModal('COMPOSITION', `Nova Composição em: ${stage.name}`, stage.id)}
+                                  >
+                                      <Calculator className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p className="text-[10px] font-bold uppercase">Adicionar Composição</p></TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
 

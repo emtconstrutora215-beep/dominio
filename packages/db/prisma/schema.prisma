@@ -162,6 +162,10 @@ model Company {
   stockAssets      StockAsset[]
   bankTransfers    BankTransfer[]
   contractTemplates ContractTemplate[]
+  measurementUnits MeasurementUnit[]
+  compositionTypes CompositionType[]
+  catalogItemBases CatalogItemBase[]
+  catalogItemCategories CatalogItemCategory[]
 }
 
 model User {
@@ -186,6 +190,7 @@ model User {
   measurementsApproved Measurement[] @relation("MeasurementApprovedBy")
   measurementsRejected Measurement[] @relation("MeasurementRejectedBy")
   measurementComments  MeasurementComment[]
+  projectComments      ProjectComment[]
 
   contact Contact?
   projectsAccess     Project[]         @relation("ProjectUsers")
@@ -262,8 +267,13 @@ model Project {
   financialSplits  FinancialEntrySplit[]
   contracts        Contract[]
   projectContracts ProjectContract[]
+  comments         ProjectComment[]
   purchaseRequestItems PurchaseRequestItem[]
+  measurements     Measurement[]
+  budgetConfig     Budget?
 }
+
+
 
 model ProjectStage {
   id                 String    @id @default(uuid())
@@ -299,7 +309,10 @@ model Budget {
   isLocked  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
+
 
 model BudgetItem {
   id             String         @id @default(uuid())
@@ -330,6 +343,7 @@ model BudgetItem {
   updatedAt      DateTime @updatedAt
 
   purchaseRequestItems PurchaseRequestItem[]
+  measurements         MeasurementItem[]
 }
 
 model DailyReport {
@@ -757,6 +771,14 @@ model ContractItem {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  type           BudgetItemType @default(ITEM)
+  parentId       String?
+  parent         ContractItem?  @relation("ContractItemToContractItem", fields: [parentId], references: [id], onDelete: Cascade)
+  children       ContractItem[] @relation("ContractItemToContractItem")
+
+  catalogItemId  String?
+  compositionId  String?
+
   contract     Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
   projectStage ProjectStage      @relation(fields: [projectStageId], references: [id], onDelete: Cascade)
   measurements MeasurementItem[]
@@ -764,7 +786,8 @@ model ContractItem {
 
 model Measurement {
   id              String            @id @default(uuid())
-  contractId      String
+  projectId       String
+  contractId      String?
   status          MeasurementStatus @default(DRAFT)
   number          Int?              // Sequencial por contrato/obra
   title           String?           // Título da medição
@@ -785,7 +808,8 @@ model Measurement {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  contract       Contract          @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  project        Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  contract       Contract?         @relation(fields: [contractId], references: [id], onDelete: Cascade)
   measuredBy     User              @relation("MeasurementMeasuredBy", fields: [measuredById], references: [id])
   approvedBy     User?             @relation("MeasurementApprovedBy", fields: [approvedById], references: [id])
   rejectedBy     User?             @relation("MeasurementRejectedBy", fields: [rejectedById], references: [id])
@@ -800,11 +824,13 @@ model Measurement {
 model MeasurementItem {
   id             String @id @default(uuid())
   measurementId  String
-  contractItemId String
+  contractItemId String?
+  budgetItemId   String?
   quantity       Float
 
-  measurement  Measurement  @relation(fields: [measurementId], references: [id], onDelete: Cascade)
-  contractItem ContractItem @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+  measurement  Measurement   @relation(fields: [measurementId], references: [id], onDelete: Cascade)
+  contractItem ContractItem? @relation(fields: [contractItemId], references: [id], onDelete: Cascade)
+  budgetItem   BudgetItem?   @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
 }
 
 model MeasurementDiscount {
@@ -838,6 +864,17 @@ model MeasurementComment {
   
   measurement   Measurement @relation(fields: [measurementId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id])
+}
+
+model ProjectComment {
+  id        String   @id @default(uuid())
+  text      String
+  userId    String
+  projectId String
+  createdAt DateTime @default(now())
+  
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 // --- NOVO: MÓDULO DE CONTATOS ---
@@ -941,30 +978,84 @@ model CatalogItem {
 }
 
 model Composition {
-  id          String  @id @default(uuid())
-  code        String?
-  description String
-  unit        String
-
-  companyId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  items   CompositionItem[]
-  budgetItems BudgetItem[]
+  id                  String            @id @default(cuid())
+  code                String?
+  description         String
+  unit                String
+  type                String?
+  base                String?
+  isActive            Boolean           @default(true)
+  detailedDescription String?           @db.Text
+  bdi                 Float             @default(0)
+  laborCost           Float             @default(0)
+  materialCost        Float             @default(0)
+  equipmentCost       Float             @default(0)
+  serviceCost         Float             @default(0)
+  companyId           String
+  company             Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items               CompositionItem[] @relation("CompositionItems")
+  asChildItems        CompositionItem[] @relation("ChildComposition")
+  budgetItems         BudgetItem[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@unique([code, companyId])
 }
 
 model CompositionItem {
-  id            String @id @default(uuid())
-  compositionId String
-  catalogItemId String
-  quantity      Float
+  id                 String       @id @default(cuid())
+  compositionId      String
+  composition        Composition  @relation("CompositionItems", fields: [compositionId], references: [id], onDelete: Cascade)
+  catalogItemId      String?
+  catalogItem        CatalogItem? @relation(fields: [catalogItemId], references: [id])
+  childCompositionId String?
+  childComposition   Composition? @relation("ChildComposition", fields: [childCompositionId], references: [id])
+  quantity           Float
+}
 
-  composition Composition @relation(fields: [compositionId], references: [id], onDelete: Cascade)
-  catalogItem CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Restrict)
+model MeasurementUnit {
+  id          String   @id @default(uuid())
+  symbol      String   // Ex: m³, kg, UN
+  description String?  // Ex: Metro Cúbico
+  companyId   String
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([symbol, companyId])
+}
+
+model CompositionType {
+  id          String   @id @default(uuid())
+  name        String   // Ex: Alvenaria, Pintura, Revestimento
+  companyId   String
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([name, companyId])
+}
+
+model CatalogItemBase {
+  id          String   @id @default(uuid())
+  name        String   // Ex: SINAPI, ORSE, PRÓPRIA
+  companyId   String
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([name, companyId])
+}
+
+model CatalogItemCategory {
+  id          String   @id @default(uuid())
+  name        String   // Ex: Areia, Brita, Cimento
+  companyId   String
+  createdAt   DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([name, companyId])
 }
 
 model ContractTemplate {

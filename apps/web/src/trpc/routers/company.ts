@@ -9,6 +9,13 @@ export const companyRouter = router({
       select: { approvalThreshold: true }
     });
   }),
+
+  getMe: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.prisma.user.findUnique({
+      where: { id: ctx.user.id },
+      select: { id: true, name: true, email: true, role: true }
+    });
+  }),
   
   updateThreshold: protectedProcedure
     .input(z.object({ threshold: z.number().min(0) }))

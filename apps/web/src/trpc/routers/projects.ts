@@ -1,5 +1,94 @@
 import { router, protectedProcedure } from '../trpc';
 import { z } from 'zod';
+import { recalculateProjectTotals } from './budget';
+
+async function syncBudgetToContract(prisma: any, projectId: string, companyId: string) {
+  // 1. Verificar se já existe um contrato com itens
+  const existingContract = await prisma.contract.findFirst({
+    where: { projectId },
+    include: { items: { take: 1 } }
+  });
+
+  if (existingContract && existingContract.items.length > 0) {
+    return existingContract; // Já sincronizado
+  }
+
+  // 2. Criar ou obter contrato
+  const contract = existingContract || await prisma.contract.create({
+    data: {
+      projectId,
+      supplierName: "Contrato Próprio", 
+      totalValue: 0,
+      retentionPercentage: 0
+    }
+  });
+
+  // 3. Buscar estágios e itens do orçamento
+  const stages = await prisma.projectStage.findMany({
+    where: { projectId },
+    include: {
+      budgetItems: {
+        orderBy: { order: 'asc' }
+      }
+    }
+  });
+
+  let contractTotal = 0;
+
+  for (const stage of stages) {
+    const rootItems = stage.budgetItems.filter((item: any) => !item.parentId);
+    
+    // Mapa para manter controle de IDs originais -> IDs novos do contrato para manter hierarquia
+    const idMap = new Map<string, string>();
+
+    const copyItems = async (items: any[], parentContractItemId: string | null = null) => {
+      for (const item of items) {
+        // Preço de venda = Custo * (1 + BDI%)
+        const bdi = item.bdi || stage.bdi || 0;
+        const saleUnitPrice = item.unitPrice * (1 + bdi / 100);
+        const saleTotalValue = item.total * (1 + bdi / 100);
+
+        const newContractItem = await prisma.contractItem.create({
+          data: {
+            contractId: contract.id,
+            projectStageId: stage.id,
+            description: item.description,
+            unit: item.unit,
+            quantity: item.quantity,
+            unitPrice: saleUnitPrice,
+            totalValue: saleTotalValue,
+            type: item.type,
+            parentId: parentContractItemId,
+            catalogItemId: item.catalogItemId,
+            compositionId: item.compositionId,
+          }
+        });
+
+        idMap.set(item.id, newContractItem.id);
+        
+        if (!parentContractItemId) {
+          contractTotal += saleTotalValue;
+        }
+
+        // Buscar filhos do item original
+        const children = stage.budgetItems.filter((i: any) => i.parentId === item.id);
+        if (children.length > 0) {
+          await copyItems(children, newContractItem.id);
+        }
+      }
+    };
+
+    await copyItems(rootItems);
+  }
+
+  // 4. Atualizar total do contrato
+  await prisma.contract.update({
+    where: { id: contract.id },
+    data: { totalValue: contractTotal }
+  });
+
+  return contract;
+}
 
 export const projectsRouter = router({
   getAll: protectedProcedure.query(async ({ ctx }) => {
@@ -21,7 +110,14 @@ export const projectsRouter = router({
       page: z.number().min(1).default(1),
       perPage: z.number().min(1).max(50).default(10),
       search: z.string().optional(),
-      status: z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional()
+      status: z.union([
+        z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']),
+        z.array(z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']))
+      ]).optional(),
+
+      onlyWithBudget: z.boolean().optional()
+
+
     }))
     .query(async ({ ctx, input }) => {
       const { page, perPage, search } = input;
@@ -31,8 +127,23 @@ export const projectsRouter = router({
       };
 
       if (input.status) {
-        whereFilters.status = input.status;
+        if (Array.isArray(input.status)) {
+          whereFilters.status = { in: input.status };
+        } else {
+          whereFilters.status = input.status;
+        }
       }
+
+      if (input.onlyWithBudget) {
+        whereFilters.OR = [
+          { budgetConfig: { isNot: null } },
+          { status: 'BUDGETING' }
+        ];
+      }
+
+
+
+
 
       if (search && search.trim().length > 0) {
         whereFilters.OR = [
@@ -72,7 +183,14 @@ export const projectsRouter = router({
       limit: z.number().min(1).max(50).default(15),
       cursor: z.string().nullish(), // id do projeto para cursor
       search: z.string().optional(),
-      status: z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']).optional()
+      status: z.union([
+        z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']),
+        z.array(z.enum(['BUDGETING', 'PLANNING', 'IN_PROGRESS', 'PAUSED', 'COMPLETED', 'CANCELLED']))
+      ]).optional(),
+
+      onlyWithBudget: z.boolean().optional()
+
+
     }))
     .query(async ({ ctx, input }) => {
       const { limit, cursor, search } = input;
@@ -82,8 +200,23 @@ export const projectsRouter = router({
       };
 
       if (input.status) {
-        whereFilters.status = input.status;
+        if (Array.isArray(input.status)) {
+          whereFilters.status = { in: input.status };
+        } else {
+          whereFilters.status = input.status;
+        }
       }
+
+      if (input.onlyWithBudget) {
+        whereFilters.OR = [
+          { budgetConfig: { isNot: null } },
+          { status: 'BUDGETING' }
+        ];
+      }
+
+
+
+
 
       if (search && search.trim().length > 0) {
         whereFilters.OR = [
@@ -119,20 +252,56 @@ export const projectsRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      const project = await ctx.prisma.project.findFirst({
-        where: { id: input.id, companyId: ctx.companyId },
-        include: {
-          stages: {
-            include: { budgetItems: true }
+      try {
+        const project = await ctx.prisma.project.findFirst({
+          where: { 
+            id: input.id, 
+            companyId: ctx.companyId 
           },
-          contracts: true,
-          dailyReports: {
-            take: 5,
-            orderBy: { date: 'desc' }
+          include: {
+            client: true,
+            technicalLead: true,
+            projectManager: true,
+            users: {
+              select: { id: true, name: true, email: true }
+            },
+            comments: {
+              include: { user: true },
+              orderBy: { createdAt: 'desc' }
+            },
+            stages: {
+              include: { budgetItems: true }
+            },
+            contracts: true,
+            defaultBankAccount: true
           }
+        });
+
+        if (!project) {
+          console.warn('Project not found in DB for given ID and CompanyId');
         }
+
+        return project;
+      } catch (error) {
+        console.error('Error fetching project by ID:', error);
+        throw error;
+      }
+    }),
+
+  addComment: protectedProcedure
+    .input(z.object({
+      projectId: z.string(),
+      text: z.string().min(1)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.prisma.projectComment.create({
+        data: {
+          projectId: input.projectId,
+          text: input.text,
+          userId: ctx.user.id
+        },
+        include: { user: true }
       });
-      return project;
     }),
 
   formOptions: protectedProcedure.query(async ({ ctx }) => {
@@ -256,8 +425,8 @@ export const projectsRouter = router({
       showInInvoicing: z.boolean().default(true),
       showInPurchasing: z.boolean().default(true),
       proposalStatus: z.enum(['UNDER_ELABORATION', 'INITIAL_CONTACT', 'SENT_TO_COMMERCIAL', 'UNDER_REVISION', 'SENT_TO_CLIENT', 'SOLD', 'LOST', 'DISCONTINUED']).default('UNDER_ELABORATION'),
-      proposalDeliveryDate: z.date().optional().nullable(),
-      proposalSaleDate: z.date().optional().nullable(),
+      proposalDeliveryDate: z.coerce.date().optional().nullable(),
+      proposalSaleDate: z.coerce.date().optional().nullable(),
       paymentCondition: z.string().optional().nullable(),
       measurementPeriod: z.string().optional().nullable(),
       installmentCount: z.number().optional().nullable(),
@@ -410,28 +579,60 @@ export const projectsRouter = router({
       proposalStatus: z.enum(['UNDER_ELABORATION', 'INITIAL_CONTACT', 'SENT_TO_COMMERCIAL', 'UNDER_REVISION', 'SENT_TO_CLIENT', 'SOLD', 'LOST', 'DISCONTINUED']).optional(),
       
       // New proposal fields
-      proposalDeliveryDate: z.date().optional().nullable(),
-      proposalSaleDate: z.date().optional().nullable(),
+      proposalDeliveryDate: z.coerce.date().optional().nullable(),
+      proposalSaleDate: z.coerce.date().optional().nullable(),
       paymentCondition: z.string().optional().nullable(),
       measurementPeriod: z.string().optional().nullable(),
       installmentCount: z.number().optional().nullable(),
       downPaymentValue: z.number().optional().nullable(),
       discountValue: z.number().optional().nullable(),
       discountType: z.string().optional().nullable(),
+
+      users: z.array(z.string()).optional(),
+      projectContacts: z.array(z.object({
+        name: z.string(),
+        role: z.string().optional(),
+        email: z.string().optional(),
+        phone: z.string().optional()
+      })).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const { id, users, projectContacts, ...data } = input;
       
-      return ctx.prisma.project.update({
-        where: { id, companyId: ctx.companyId },
-        data: {
-          ...data,
-          technicalLeadId: data.technicalLeadId === "" ? null : data.technicalLeadId,
-          projectManagerId: data.projectManagerId === "" ? null : data.projectManagerId,
-          clientId: data.clientId === "" ? null : data.clientId,
-          defaultBankAccountId: data.defaultBankAccountId === "" ? null : data.defaultBankAccountId,
-        } as any
+      const updated = await ctx.prisma.$transaction(async (tx: any) => {
+        // Atualizar projeto básico
+        const project = await tx.project.update({
+          where: { id, companyId: ctx.companyId },
+          data: {
+            ...data,
+            technicalLeadId: data.technicalLeadId === "" ? null : data.technicalLeadId,
+            projectManagerId: data.projectManagerId === "" ? null : data.projectManagerId,
+            clientId: data.clientId === "" ? null : data.clientId,
+            defaultBankAccountId: data.defaultBankAccountId === "" ? null : data.defaultBankAccountId,
+            
+            // Atualizar usuários (limpa e reconecta)
+            users: users ? {
+              set: users.map(uid => ({ id: uid }))
+            } : undefined,
+
+            // Atualizar contatos da obra (limpa e recria)
+            projectContacts: projectContacts ? {
+              deleteMany: {},
+              create: projectContacts
+            } : undefined
+          } as any
+        });
+
+        // Sincronizações extras
+        if (data.proposalStatus === 'SOLD') {
+          await syncBudgetToContract(tx, id, ctx.companyId);
+        }
+        await recalculateProjectTotals(tx, id);
+
+        return project;
       });
+
+      return updated;
     }),
 
   delete: protectedProcedure

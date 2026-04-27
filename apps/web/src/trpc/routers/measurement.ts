@@ -8,14 +8,14 @@ export const measurementRouter = router({
     .input(z.object({ projectId: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.measurement.findMany({
-        where: { contract: { projectId: input.projectId } },
+        where: { projectId: input.projectId },
         include: {
           contract: true,
           measuredBy: true,
           approvedBy: true,
           rejectedBy: true,
           items: {
-             include: { contractItem: { include: { projectStage: true } } }
+             include: { budgetItem: { include: { projectStage: true } } }
           }
         },
         orderBy: { createdAt: 'desc' }
@@ -28,12 +28,13 @@ export const measurementRouter = router({
       const measurement = await ctx.prisma.measurement.findUnique({
         where: { id: input.id },
         include: {
-          contract: { include: { project: true } },
+          project: { include: { client: true } },
+          contract: true,
           measuredBy: true,
           approvedBy: true,
           rejectedBy: true,
           items: {
-             include: { contractItem: { include: { projectStage: true } } }
+             include: { budgetItem: { include: { projectStage: true } } }
           },
           discounts: true,
           retentions: true,
@@ -45,20 +46,25 @@ export const measurementRouter = router({
     }),
 
   getDataForNewMeasurement: protectedProcedure
-    .input(z.object({ contractId: z.string() }))
+    .input(z.object({ projectId: z.string() }))
     .query(async ({ ctx, input }) => {
-      const contract = await ctx.prisma.contract.findUnique({
-        where: { id: input.contractId },
+      const project = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
         include: {
-          project: true,
-          items: {
+          client: true,
+          stages: {
             include: {
-              projectStage: true,
-              measurements: {
-                where: { measurement: { status: 'APPROVED' } },
-                include: { measurement: true }
+              budgetItems: {
+                include: {
+                  measurements: {
+                    where: { measurement: { status: 'APPROVED' } },
+                    include: { measurement: true }
+                  }
+                },
+                orderBy: { order: 'asc' }
               }
-            }
+            },
+            orderBy: { createdAt: 'asc' }
           },
           measurements: {
             select: { number: true },
@@ -68,47 +74,77 @@ export const measurementRouter = router({
         }
       });
 
-      if (!contract) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (!project) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      const nextNumber = (contract.measurements[0]?.number || 0) + 1;
+      const nextNumber = (project.measurements[0]?.number || 0) + 1;
 
-      const items = contract.items.map(item => {
-        const totalMeasuredQuantity = item.measurements.reduce((acc, m) => acc + m.quantity, 0);
-        const totalMeasuredValue = totalMeasuredQuantity * item.unitPrice;
+      // Construção da árvore incluindo a Etapa como nó pai
+      const measurementTree = project.stages.map((stage: any) => {
+        const itemMap = new Map();
         
-        const remainingQuantity = item.quantity - totalMeasuredQuantity;
-        const remainingValue = item.totalValue - totalMeasuredValue;
-        const remainingPercentage = item.totalValue > 0 ? (remainingValue / item.totalValue) * 100 : 0;
+        // Primeiro, prepara os itens do orçamento
+        stage.budgetItems.forEach((item: any) => {
+          const totalMeasuredQuantity = item.measurements.reduce((acc: number, m: any) => acc + m.quantity, 0);
+          const totalMeasuredValue = totalMeasuredQuantity * item.unitPrice;
+          
+          const remainingQuantity = item.quantity - totalMeasuredQuantity;
+          const remainingValue = item.total - totalMeasuredValue;
+          const accumulatedPercentage = item.total > 0 ? (totalMeasuredValue / item.total) * 100 : 0;
 
+          itemMap.set(item.id, {
+            ...item,
+            totalValue: item.total,
+            accumulatedQuantity: totalMeasuredQuantity,
+            accumulatedValue: totalMeasuredValue,
+            accumulatedPercentage,
+            remainingQuantity,
+            remainingValue,
+            children: []
+          });
+        });
+
+        // Monta a hierarquia interna da etapa
+        const stageRootItems: any[] = [];
+        itemMap.forEach(item => {
+          if (item.parentId && itemMap.has(item.parentId)) {
+            itemMap.get(item.parentId).children.push(item);
+          } else {
+            stageRootItems.push(item);
+          }
+        });
+
+        // Retorna a etapa como se fosse um item de orçamento para o traverse do front-end
         return {
-          id: item.id,
-          description: item.description,
-          unit: item.unit,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalValue: item.totalValue,
-          projectStageName: item.projectStage.name,
-          remainingQuantity,
-          remainingValue,
-          remainingPercentage
+          id: stage.id,
+          description: stage.name,
+          type: 'STAGE',
+          totalValue: stage.plannedCost || stage.budgetItems.reduce((acc: number, bi: any) => acc + bi.total, 0),
+          accumulatedValue: stage.actualCost || stage.budgetItems.reduce((acc: number, bi: any) => {
+             const measured = bi.measurements.reduce((sum: number, m: any) => sum + m.quantity, 0);
+             return acc + (measured * bi.unitPrice);
+          }, 0),
+          accumulatedPercentage: stage.percentageComplete,
+          children: stageRootItems,
+          projectStageId: stage.id
         };
       });
 
       return {
-        contract,
+        project,
         nextNumber,
-        items
+        items: measurementTree
       };
     }),
 
   createMeasurement: protectedProcedure
     .input(z.object({
-      contractId: z.string(),
+      projectId: z.string(),
+      contractId: z.string().optional(),
       title: z.string().optional(),
       notes: z.string().optional(),
       attachments: z.array(z.string()).default([]),
       items: z.array(z.object({
-        contractItemId: z.string(),
+        budgetItemId: z.string(),
         quantity: z.number().positive(),
       })),
       discounts: z.array(z.object({
@@ -125,10 +161,10 @@ export const measurementRouter = router({
       })).default([])
     }))
     .mutation(async ({ ctx, input }) => {
-      const contract = await ctx.prisma.contract.findUnique({
-        where: { id: input.contractId },
+      const project = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
         include: { 
-          items: true,
+          stages: { include: { budgetItems: true } },
           measurements: {
             select: { number: true },
             orderBy: { number: 'desc' },
@@ -137,19 +173,20 @@ export const measurementRouter = router({
         }
       });
 
-      if (!contract) throw new TRPCError({ code: 'NOT_FOUND' });
+      if (!project) throw new TRPCError({ code: 'NOT_FOUND' });
 
-      const nextNumber = (contract.measurements[0]?.number || 0) + 1;
+      const allBudgetItems = project.stages.flatMap(s => s.budgetItems);
+      const nextNumber = (project.measurements[0]?.number || 0) + 1;
       let grossValue = 0;
       
       const measurementItems = input.items.map(item => {
-         const contractItem = contract.items.find(ci => ci.id === item.contractItemId);
-         if (!contractItem) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item not found in contract' });
+         const budgetItem = allBudgetItems.find(bi => bi.id === item.budgetItemId);
+         if (!budgetItem) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item not found in budget' });
          
-         grossValue += (item.quantity * contractItem.unitPrice);
+         grossValue += (item.quantity * budgetItem.unitPrice);
          
          return {
-           contractItemId: item.contractItemId,
+           budgetItemId: item.budgetItemId,
            quantity: item.quantity
          };
       });
@@ -161,6 +198,7 @@ export const measurementRouter = router({
 
       return ctx.prisma.measurement.create({
         data: {
+          projectId: input.projectId,
           contractId: input.contractId,
           measuredById: ctx.user.id,
           status: 'DRAFT',
@@ -199,8 +237,8 @@ export const measurementRouter = router({
       const measurement = await ctx.prisma.measurement.findUnique({
         where: { id: input.id },
         include: {
-           contract: { include: { project: true } },
-           items: { include: { contractItem: { include: { projectStage: true } } } }
+           project: { include: { client: true } },
+           items: { include: { budgetItem: { include: { projectStage: true } } } }
         }
       });
 
@@ -209,30 +247,31 @@ export const measurementRouter = router({
 
       return ctx.prisma.$transaction(async (tx: any) => {
          const approved = await tx.measurement.update({
-           where: { id: input.id },
-           data: {
-             status: 'APPROVED',
-             approvedById: ctx.user.id,
-             approvedAt: new Date()
-           }
+            where: { id: input.id },
+            data: {
+              status: 'APPROVED',
+              approvedById: ctx.user.id,
+              approvedAt: new Date()
+            }
          });
 
          await tx.financialEntry.create({
-           data: {
-             type: 'EXPENSE',
-             category: 'Medição Subempreiteiro', 
-             description: `Pgto Medição: ${measurement.contract.supplierName} - ${measurement.contract.project.name}`,
-             amount: measurement.netValue,
-             dueDate: addDays(new Date(), 15),
-             status: 'PENDING',
-             companyId: measurement.contract.project.companyId,
-             measurementId: measurement.id
-           }
-         });
+            data: {
+              type: 'INCOME',
+              category: 'Medição de Obra (Receita)', 
+              description: `Faturamento Medição: ${measurement.project.name} - Medição Nº ${measurement.number}`,
+              amount: measurement.netValue,
+              dueDate: addDays(new Date(), 15),
+              status: 'PENDING',
+              companyId: measurement.project.companyId,
+              contactId: measurement.project.clientId,
+              measurementId: measurement.id
+            }
+          });
 
          for (const item of measurement.items) {
-            const stage = item.contractItem.projectStage;
-            const itemGrossValue = item.quantity * item.contractItem.unitPrice;
+            const stage = (item as any).budgetItem.projectStage;
+            const itemGrossValue = item.quantity * (item as any).budgetItem.unitPrice;
             const newActual = stage.actualCost + itemGrossValue;
             let newPercent = stage.percentageComplete;
 
@@ -292,6 +331,11 @@ export const measurementRouter = router({
       const projects = await ctx.prisma.project.findMany({
         where: {
           companyId: ctx.companyId,
+          // Mostrar projetos que tenham orçamento (budget > 0) ou medições
+          OR: [
+            { budget: { gt: 0 } },
+            { measurements: { some: {} } }
+          ],
           ...(status ? { status: status as any } : {}),
           ...(search ? {
             OR: [
@@ -303,28 +347,24 @@ export const measurementRouter = router({
         },
         include: {
           client: true,
-          contracts: {
-            include: {
-              measurements: true
-            }
-          }
+          measurements: true
         },
         orderBy: { name: 'asc' }
       });
 
       return projects.map(project => {
-        const allMeasurements = project.contracts.flatMap(c => c.measurements);
-        const approvedMeasurements = allMeasurements.filter(m => m.status === 'APPROVED');
+        const allMeasurements = (project as any).measurements;
+        const approvedMeasurements = allMeasurements.filter((m: any) => m.status === 'APPROVED');
         
-        const totalContractValue = project.contracts.reduce((acc, c) => acc + c.totalValue, 0);
-        const totalApprovedValue = approvedMeasurements.reduce((acc, m) => acc + m.grossValue, 0);
+        const totalBudget = (project as any).budget;
+        const totalApprovedValue = approvedMeasurements.reduce((acc: number, m: any) => acc + m.grossValue, 0);
         
         const lastApproved = approvedMeasurements.length > 0
           ? approvedMeasurements.sort((a, b) => (b.approvedAt?.getTime() || 0) - (a.approvedAt?.getTime() || 0))[0]
           : null;
 
-        const approvedPercentage = totalContractValue > 0 
-          ? (totalApprovedValue / totalContractValue) * 100 
+        const approvedPercentage = totalBudget > 0 
+          ? (totalApprovedValue / totalBudget) * 100 
           : 0;
 
         return {

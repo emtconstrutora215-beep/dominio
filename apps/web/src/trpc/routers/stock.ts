@@ -8,7 +8,12 @@ export const stockRouter = router({
     const depots = await ctx.prisma.depot.findMany({
       where: { companyId: ctx.companyId },
       include: {
-        project: { select: { name: true } },
+        project: { 
+          select: { 
+            name: true,
+            users: { select: { id: true } }
+          } 
+        },
         _count: { select: { stockItems: true, stockAssets: true } },
         stockItems: {
           select: {
@@ -20,8 +25,15 @@ export const stockRouter = router({
       orderBy: { name: 'asc' }
     });
 
+    // Get company users count for central depots
+    const companyUsersCount = await ctx.prisma.user.count({
+      where: { companyId: ctx.companyId }
+    });
+
     return depots.map(depot => ({
       ...depot,
+      userCount: depot.projectId ? (depot.project?.users?.length || 0) : companyUsersCount,
+      totalInsumos: depot.stockItems.reduce((acc: number, item: any) => acc + (item.quantity || 0), 0),
       totalValue: depot.stockItems.reduce((acc: number, item: any) => acc + (item.quantity * item.averageUnitCost), 0)
     }));
   }),

@@ -64,8 +64,10 @@ export default function FinanceiroList() {
   const [type, setType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [category, setCategory] = useState("Materiais");
   const [dueDate, setDueDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [costCenterType, setCostCenterType] = useState<"EMPRESA" | "OBRA">("EMPRESA");
   const [showSplits, setShowSplits] = useState(false);
   const [splits, setSplits] = useState<{projectId: string, percentage: number}[]>([]);
+
 
   const resetForm = () => {
     setDescription("");
@@ -73,8 +75,10 @@ export default function FinanceiroList() {
     setType("EXPENSE");
     setCategory("Materiais");
     setDueDate(format(new Date(), "yyyy-MM-dd"));
+    setCostCenterType("EMPRESA");
     setShowSplits(false);
     setSplits([]);
+
   };
 
   const totalSplitPercent = useMemo(() => splits.reduce((acc, s) => acc + s.percentage, 0), [splits]);
@@ -90,7 +94,9 @@ export default function FinanceiroList() {
       description,
       amount,
       dueDate,
+      payerType: costCenterType, // Opcional: registrar o tipo no payerType se desejar
     });
+
   };
 
   const addSplitRow = () => {
@@ -161,16 +167,39 @@ export default function FinanceiroList() {
                   </div>
                 </div>
 
-                {/* RATEIO SECTION */}
-                <div className="border rounded-md p-4 bg-slate-50">
-                  <button 
-                    type="button"
-                    onClick={() => setShowSplits(!showSplits)}
-                    className="flex items-center justify-between w-full text-sm font-semibold text-primary"
+                <div className="space-y-2">
+                  <Label>Centro de Custo</Label>
+                  <Select 
+                    value={costCenterType} 
+                    onValueChange={(v: "EMPRESA" | "OBRA") => {
+                      setCostCenterType(v);
+                      if (v === "OBRA") {
+                        setShowSplits(true);
+                        if (splits.length === 0 && projects && projects.length > 0) {
+                          setSplits([{ projectId: projects[0].id, percentage: 100 }]);
+                        }
+                      } else {
+                        setShowSplits(false);
+                        setSplits([]);
+                      }
+                    }}
                   >
-                    <span className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Ratear entre obras</span>
-                    {showSplits ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                  </button>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EMPRESA">Administrativo (Empresa)</SelectItem>
+                      <SelectItem value="OBRA">Obra (Projeto)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+
+                {/* RATEIO SECTION */}
+                {costCenterType === "OBRA" && (
+                  <div className="border rounded-md p-4 bg-slate-50 animate-in slide-in-from-top-2 duration-300">
+                    <div className="flex items-center justify-between w-full text-sm font-semibold text-primary mb-4">
+                      <span className="flex items-center gap-2"><Calculator className="w-4 h-4" /> Distribuição por Obra</span>
+                    </div>
+
                   
                   {showSplits && (
                     <div className="mt-4 space-y-4">
@@ -185,8 +214,11 @@ export default function FinanceiroList() {
                             }}>
                               <SelectTrigger className="h-8 shadow-none"><SelectValue /></SelectTrigger>
                               <SelectContent>
-                                {(projects as any[])?.filter((p: any) => p && p.id).map((p: any) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                                {(projects as any[])?.filter((p: any) => p && p.id).map((p: any) => (
+                                  <SelectItem key={p.id} value={p.id}>{p.code ? `${p.code} - ` : ""}{p.name}</SelectItem>
+                                ))}
                               </SelectContent>
+
                             </Select>
                           </div>
                           <div className="w-20 space-y-1">
@@ -225,10 +257,12 @@ export default function FinanceiroList() {
                         <div className={totalSplitPercent === 100 ? "text-green-600 font-bold" : "text-red-500 font-bold"}>
                           Total: {totalSplitPercent}%
                         </div>
-                      </div>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
+            )}
+
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

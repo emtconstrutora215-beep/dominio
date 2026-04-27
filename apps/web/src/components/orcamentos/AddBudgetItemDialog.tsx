@@ -30,7 +30,7 @@ interface AddBudgetItemDialogProps {
   onClose: () => void;
   onConfirm: (selection: any) => void;
   title: string;
-  type?: 'ITEM' | 'INPUT' | 'SUB_STAGE' | 'STAGE';
+  type?: 'ITEM' | 'INPUT' | 'COMPOSITION' | 'SUB_STAGE' | 'STAGE';
 }
 
 export function AddBudgetItemDialog({ 
@@ -48,12 +48,12 @@ export function AddBudgetItemDialog({
   const { data: catalogData, isLoading: loadingCatalog } = trpc.catalogItem.list.useQuery({ 
     search, 
     perPage: 20 
-  }, { enabled: isOpen });
+  }, { enabled: isOpen && type !== 'COMPOSITION' });
   
   const { data: compositionData, isLoading: loadingCompositions } = trpc.composition.list.useQuery({ 
     search, 
     perPage: 20 
-  }, { enabled: isOpen });
+  }, { enabled: isOpen && type !== 'INPUT' });
 
   const handleConfirm = () => {
     if (!selectedItem) return;
@@ -87,7 +87,9 @@ export function AddBudgetItemDialog({
         <DialogHeader className="p-8 bg-[#1A3C5E] text-white">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center">
-              {type === 'INPUT' ? <Package className="text-orange-400" /> : <Layers className="text-blue-300" />}
+               {type === 'INPUT' ? <Package className="text-orange-400" /> : 
+                type === 'COMPOSITION' ? <Calculator className="text-blue-300" /> : 
+                <Layers className="text-blue-300" />}
             </div>
             <div>
               <DialogTitle className="text-xl font-bold tracking-tight">{title}</DialogTitle>

@@ -69,7 +69,7 @@ export const financialRouter = router({
       }),
       ctx.prisma.project.findMany({ 
         where: { companyId: ctx.companyId }, 
-        select: { id: true, name: true, stages: { select: { id: true, name: true } } } 
+        select: { id: true, name: true, code: true, stages: { select: { id: true, name: true } } } 
       }),
     ]);
 
@@ -205,6 +205,51 @@ export const financialRouter = router({
       where: { 
         companyId: ctx.companyId,
         type: 'EXPENSE',
+        status: { in: ['PENDING', 'PARTIALLY_PAID'] }
+      },
+      select: { amount: true, dueDate: true }
+    });
+
+    const summary = {
+      today: 0,
+      sevenDays: 0,
+      thirtyDays: 0
+    };
+
+    entries.forEach(e => {
+      const dueDate = new Date(e.dueDate);
+      dueDate.setHours(0,0,0,0);
+
+      if (dueDate.getTime() === today.getTime()) {
+        summary.today += e.amount;
+      }
+      
+      if (dueDate >= today && dueDate <= in7Days) {
+        summary.sevenDays += e.amount;
+      }
+      
+      if (dueDate >= today && dueDate <= in30Days) {
+        summary.thirtyDays += e.amount;
+      }
+    });
+
+    return summary;
+  }),
+
+  getReceiptSummary: protectedProcedure.query(async ({ ctx }) => {
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const in7Days = new Date(today);
+    in7Days.setDate(today.getDate() + 7);
+    
+    const in30Days = new Date(today);
+    in30Days.setDate(today.getDate() + 30);
+
+    const entries = await ctx.prisma.financialEntry.findMany({
+      where: { 
+        companyId: ctx.companyId,
+        type: 'INCOME',
         status: { in: ['PENDING', 'PARTIALLY_PAID'] }
       },
       select: { amount: true, dueDate: true }

@@ -20,7 +20,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
-import { Plus, Loader2, X } from "lucide-react";
+import { Plus, Loader2, X, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -75,12 +77,19 @@ export function NewBudgetDialog({ trigger }: { trigger?: React.ReactNode }) {
       toast.error("Selecione uma obra para começar.");
       return;
     }
+
+    if (selectedProject && selectedProject.budget > 0) {
+      toast.info("Obra já possui orçamento. Redirecionando para edição...");
+    }
+    
     createBudget.mutate({ 
       projectId: selectedProjectId, 
       code: code || undefined,
       status: status
     });
   };
+
+
 
   const selectTriggerClass = "h-11 border-slate-200 bg-white rounded-md focus:ring-1 focus:ring-blue-500 transition-all text-slate-600 font-medium";
 
@@ -130,6 +139,18 @@ export function NewBudgetDialog({ trigger }: { trigger?: React.ReactNode }) {
               </SelectContent>
             </Select>
           </div>
+
+          {selectedProject && selectedProject.budget > 0 && (
+            <Alert className="bg-amber-50 border-amber-200 text-amber-800 rounded-xl animate-in fade-in zoom-in-95 duration-300">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-xs font-bold uppercase tracking-wider">Orçamento Existente</AlertTitle>
+              <AlertDescription className="text-[11px] font-medium opacity-80 leading-relaxed">
+                Esta obra já possui um orçamento iniciado ({new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedProject.budget)}). 
+                Ao continuar, você será redirecionado para a edição.
+              </AlertDescription>
+            </Alert>
+          )}
+
 
           {/* Cliente */}
           <div className="space-y-2">
