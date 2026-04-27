@@ -765,14 +765,16 @@ export const biRouter = router({
           if (mi.budgetItem.type === 'COMPOSITION' && mi.budgetItem.composition) {
             mi.budgetItem.composition.items.forEach(ci => {
               const qty = mi.quantity * ci.quantity;
-              const desc = ci.catalogItem.description;
-              let entry = reportMap.get(desc);
-              if (!entry) {
-                entry = { description: desc, orcadoQty: 0, orcadoUnitPrice: ci.catalogItem.unitCost, realizadoQty: 0, realizadoUnitPrice: 0 };
-                reportMap.set(desc, entry);
+              if (ci.catalogItem) {
+                const desc = ci.catalogItem.description;
+                let entry = reportMap.get(desc);
+                if (!entry) {
+                  entry = { description: desc, orcadoQty: 0, orcadoUnitPrice: ci.catalogItem.unitCost, realizadoQty: 0, realizadoUnitPrice: 0 };
+                  reportMap.set(desc, entry);
+                }
+                entry.realizadoQty += qty;
+                if (entry.realizadoUnitPrice === 0) entry.realizadoUnitPrice = ci.catalogItem.unitCost;
               }
-              entry.realizadoQty += qty;
-              if (entry.realizadoUnitPrice === 0) entry.realizadoUnitPrice = ci.catalogItem.unitCost;
             });
           } else {
             const desc = mi.budgetItem.description;
