@@ -376,7 +376,7 @@ export const measurementRouter = router({
         const totalApprovedValue = approvedMeasurements.reduce((acc: number, m: any) => acc + m.grossValue, 0);
         
         const lastApproved = approvedMeasurements.length > 0
-          ? approvedMeasurements.sort((a, b) => (b.approvedAt?.getTime() || 0) - (a.approvedAt?.getTime() || 0))[0]
+          ? approvedMeasurements.sort((a: any, b: any) => (b.approvedAt?.getTime() || 0) - (a.approvedAt?.getTime() || 0))[0]
           : null;
 
         const approvedPercentage = totalBudget > 0 
