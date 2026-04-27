@@ -41,31 +41,31 @@ import { ItemSelectorDialog } from "@/components/catalogo/ItemSelectorDialog";
 
 const compositionSchema = z.object({
   id: z.string(),
-  code: z.string().nullable().default(null),
+  code: z.string().nullable(),
   description: z.string().min(1, "A descrição é obrigatória"),
   unit: z.string().min(1, "A unidade é obrigatória"),
-  type: z.string().nullable().default(null),
-  base: z.string().nullable().default("Própria"),
-  isActive: z.boolean().default(true),
-  detailedDescription: z.string().nullable().default(null),
-  bdi: z.number().min(0).default(0),
+  type: z.string().nullable(),
+  base: z.string().nullable(),
+  isActive: z.boolean(),
+  detailedDescription: z.string().nullable(),
+  bdi: z.number().min(0),
 
   // Custos Manuais
-  laborCost: z.number().default(0),
-  materialCost: z.number().default(0),
-  equipmentCost: z.number().default(0),
-  serviceCost: z.number().default(0),
+  laborCost: z.number(),
+  materialCost: z.number(),
+  equipmentCost: z.number(),
+  serviceCost: z.number(),
 
   items: z.array(z.object({
-    catalogItemId: z.string().nullable().default(null),
-    childCompositionId: z.string().nullable().default(null),
+    catalogItemId: z.string().nullable(),
+    childCompositionId: z.string().nullable(),
     quantity: z.number().min(0.000001),
     _name: z.string().optional(),
     _code: z.string().optional(),
     _unit: z.string().optional(),
     _unitCost: z.number().optional(),
     _type: z.string().optional(),
-  })).default([])
+  }))
 });
 
 type CompositionFormValues = z.infer<typeof compositionSchema>;
@@ -99,7 +99,22 @@ export default function EditarComposicaoPage() {
 
   const { register, control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<CompositionFormValues>({
     resolver: zodResolver(compositionSchema),
-    defaultValues: { items: [] }
+    defaultValues: { 
+      id: "",
+      code: null,
+      description: "",
+      unit: "",
+      type: null,
+      base: "Própria",
+      isActive: true,
+      detailedDescription: null,
+      bdi: 0,
+      laborCost: 0,
+      materialCost: 0,
+      equipmentCost: 0,
+      serviceCost: 0,
+      items: [] 
+    }
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "items" });
