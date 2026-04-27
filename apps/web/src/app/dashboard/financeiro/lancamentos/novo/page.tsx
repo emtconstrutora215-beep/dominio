@@ -319,7 +319,7 @@ export default function NovoLancamentoPage() {
                   <SelectTrigger className="h-8 text-[11px] bg-white border-slate-300"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
                     {options?.measurements.map(m => (
-                      <SelectItem key={m.id} value={m.id}>Med. R$ {m.netValue.toFixed(2)} ({m.contract.supplierName})</SelectItem>
+                      <SelectItem key={m.id} value={m.id}>Med. R$ {m.netValue.toFixed(2)} ({m.contract?.supplierName || 'Sem Contrato'})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
