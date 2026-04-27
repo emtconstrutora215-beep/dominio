@@ -55,7 +55,7 @@ export default function GestaoPage() {
     search: search || undefined,
     status: getStatusInput() as any,
   }, {
-    keepPreviousData: true
+    placeholderData: (prev) => prev
   });
 
   const handlePrint = () => {
