@@ -144,7 +144,8 @@ export const measurementRouter = router({
       notes: z.string().optional(),
       attachments: z.array(z.string()).default([]),
       items: z.array(z.object({
-        budgetItemId: z.string(),
+        budgetItemId: z.string().optional(),
+        contractItemId: z.string().optional(),
         quantity: z.number().positive(),
       })),
       discounts: z.array(z.object({
@@ -180,16 +181,31 @@ export const measurementRouter = router({
       let grossValue = 0;
       
       const measurementItems = input.items.map(item => {
-         const budgetItem = allBudgetItems.find(bi => bi.id === item.budgetItemId);
-         if (!budgetItem) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item not found in budget' });
-         
-         grossValue += (item.quantity * budgetItem.unitPrice);
-         
-         return {
-           budgetItemId: item.budgetItemId,
-           quantity: item.quantity
-         };
+         if (item.budgetItemId) {
+           const budgetItem = allBudgetItems.find(bi => bi.id === item.budgetItemId);
+           if (!budgetItem) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item not found in budget' });
+           grossValue += (item.quantity * budgetItem.unitPrice);
+           return { budgetItemId: item.budgetItemId, quantity: item.quantity };
+         } else if (item.contractItemId) {
+           return { contractItemId: item.contractItemId, quantity: item.quantity };
+         }
+         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Item must have budgetItemId or contractItemId' });
       });
+
+      // Cálculo de valor bruto para itens de contrato
+      const contractItemIds = input.items.filter(i => i.contractItemId).map(i => i.contractItemId as string);
+      if (contractItemIds.length > 0) {
+        const contractItems = await ctx.prisma.contractItem.findMany({
+          where: { id: { in: contractItemIds } }
+        });
+        
+        input.items.forEach(item => {
+          if (item.contractItemId) {
+            const ci = contractItems.find(c => c.id === item.contractItemId);
+            if (ci) grossValue += (item.quantity * ci.unitPrice);
+          }
+        });
+      }
 
       const totalDiscounts = input.discounts.reduce((acc, d) => acc + d.value, 0);
       const totalRetentions = input.retentions.reduce((acc, r) => acc + r.value, 0);

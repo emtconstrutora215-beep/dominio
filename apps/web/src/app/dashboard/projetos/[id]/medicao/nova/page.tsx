@@ -72,12 +72,18 @@ export default function NovaMedicaoPage() {
           uploadedPaths.push(data.path);
        }
 
-       createMutation.mutate({
-          contractId,
-          notes,
-          attachments: uploadedPaths,
-          items: (items as any[]).filter((i: any) => i.quantity > 0)
-       });
+        createMutation.mutate({
+           projectId,
+           contractId,
+           notes,
+           attachments: uploadedPaths,
+           items: items
+             .filter(i => i.quantity > 0)
+             .map(i => ({
+                contractItemId: i.contractItemId,
+                quantity: i.quantity
+             }))
+        });
      } catch (err: unknown) {
         const error = err as Error;
         toast.error("Erro de Upload: " + error.message);
