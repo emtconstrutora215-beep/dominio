@@ -41,13 +41,13 @@ import { ItemSelectorDialog } from "@/components/catalogo/ItemSelectorDialog";
 
 const compositionSchema = z.object({
   id: z.string(),
-  code: z.string().optional().nullable(),
+  code: z.string().nullable().default(null),
   description: z.string().min(1, "A descrição é obrigatória"),
   unit: z.string().min(1, "A unidade é obrigatória"),
-  type: z.string().optional().nullable(),
+  type: z.string().nullable().default(null),
   base: z.string().nullable().default("Própria"),
   isActive: z.boolean().default(true),
-  detailedDescription: z.string().optional().nullable(),
+  detailedDescription: z.string().nullable().default(null),
   bdi: z.number().min(0).default(0),
 
   // Custos Manuais
@@ -57,8 +57,8 @@ const compositionSchema = z.object({
   serviceCost: z.number().default(0),
 
   items: z.array(z.object({
-    catalogItemId: z.string().optional().nullable(),
-    childCompositionId: z.string().optional().nullable(),
+    catalogItemId: z.string().nullable().default(null),
+    childCompositionId: z.string().nullable().default(null),
     quantity: z.number().min(0.000001),
     _name: z.string().optional(),
     _code: z.string().optional(),
