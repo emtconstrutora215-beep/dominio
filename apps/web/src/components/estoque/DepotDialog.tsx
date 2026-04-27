@@ -51,7 +51,7 @@ import { cn } from "@/lib/utils";
 const depotSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres"),
   projectId: z.string().optional(),
-  managerIds: z.array(z.string()).default([]),
+  managerIds: z.array(z.string()),
 });
 
 export function DepotDialog({ 
@@ -71,7 +71,7 @@ export function DepotDialog({
   const { data: users } = trpc.company.getUsers.useQuery();
 
   const form = useForm<z.infer<typeof depotSchema>>({
-    resolver: zodResolver(depotSchema),
+    resolver: zodResolver(depotSchema) as any,
     defaultValues: {
       name: editDepot?.name || "",
       projectId: editDepot?.projectId || "central",
