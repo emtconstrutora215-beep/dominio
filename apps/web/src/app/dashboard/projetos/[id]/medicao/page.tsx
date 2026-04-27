@@ -120,10 +120,10 @@ export default function MedicaoDashboard() {
                          <TableCell colSpan={6} className="text-center text-muted-foreground py-6">Nenhuma medição encontrada</TableCell>
                        </TableRow>
                     )}
-                    {measurements?.map((m: { id: string, createdAt: string, status: string, grossValue: number, netValue: number, contract: { supplierName: string } }) => (
+                    {measurements?.map((m) => (
                       <TableRow key={m.id}>
                         <TableCell>{new Date(m.createdAt).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell className="font-medium">{m.contract.supplierName}</TableCell>
+                        <TableCell className="font-medium">{m.contract?.supplierName || "Obra Direta"}</TableCell>
                         <TableCell><StatusBadge status={m.status} /></TableCell>
                         <TableCell className="text-right text-muted-foreground">{formatCurrency(m.grossValue)}</TableCell>
                         <TableCell className="text-right font-medium text-primary">{formatCurrency(m.netValue)}</TableCell>
