@@ -273,7 +273,8 @@ export const projectsRouter = router({
               include: { budgetItems: true }
             },
             contracts: true,
-            defaultBankAccount: true
+            defaultBankAccount: true,
+            projectContacts: true
           }
         });
 
